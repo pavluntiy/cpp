@@ -11,7 +11,7 @@ private:
     AllocErrorType type;
 
 public:
-    AllocError(AllocErrorType _type, std::string message):
+    AllocError(AllocErrorType _type, std::string message = ""):
             runtime_error(message),
             type(_type)
     {}
@@ -22,17 +22,51 @@ public:
 class Allocator;
 
 class Pointer {
+private:
+    void *pointer;
 public:
-    void *get() const { return 0; } 
+    Pointer(void* pointer = nullptr);
+    void* get() const; 
+    void set(void *);
 };
 
 class Allocator {
+protected:
+
+    // struct BlockList;
+    // {
+    //     BlockList *next;
+    //     void *block;
+    //     size_t size;
+
+    //     BlockList(BlockList *next = nullptr, void *block = nullptr, size_t size = 0):
+    //         next(next), block(block), size(size)
+    //     {}
+    // };
+
+    // BlockList *blockList;
+
+    size_t block_size;
+
+    size_t n_blocks;
+
+    bool *memory_map;
+
+    size_t buf_size;
+    size_t list_size;
+    void *base;
+    void *begin;
+    void *end;
+
+    size_t allocated_size;
+
+
 public:
-    Allocator(void *base, size_t size) {}
+    Allocator(void*, size_t);
     
-    Pointer alloc(size_t N) { return Pointer(); }
-    void realloc(Pointer &p, size_t N) {}
-    void free(Pointer &p) {}
+    Pointer alloc(size_t N);
+    void realloc(Pointer &p, size_t N);
+    void free(Pointer &p);
 
     void defrag() {}
     std::string dump() { return ""; }
