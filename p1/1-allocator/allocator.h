@@ -24,10 +24,12 @@ class Allocator;
 class Pointer {
 private:
     void *pointer;
+    Allocator* allocator;
+    int number;
+    friend class Allocator;
 public:
-    Pointer(void* pointer = nullptr);
+    Pointer(Allocator *allocator = nullptr, int number = -1);
     void* get() const; 
-    void set(void *);
 };
 
 class Allocator {
@@ -45,12 +47,18 @@ protected:
     // };
 
     // BlockList *blockList;
+    struct MapEntry
+    {
+        int start_block;
+        int n_blocks;
+    };
 
     size_t block_size;
 
     size_t n_blocks;
 
     bool *memory_map;
+    MapEntry *hash_map;
 
     size_t buf_size;
     size_t list_size;
@@ -58,8 +66,13 @@ protected:
     void *begin;
     void *end;
 
+    int total_pointers;
+
     size_t allocated_size;
 
+    friend class Pointer;
+
+    void *resolve(int);
 
 public:
     Allocator(void*, size_t);
@@ -70,5 +83,6 @@ public:
 
     void defrag() {}
     std::string dump() { return ""; }
+
 };
 
