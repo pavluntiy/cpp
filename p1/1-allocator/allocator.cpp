@@ -1,6 +1,7 @@
 #include "allocator.h"
 #include "cstdlib"
 #include <iostream>
+#include <cstring>
 
 
 
@@ -89,8 +90,26 @@ void* Allocator::resolve(int p_number)
     return this->begin + this->block_size * this->hash_map[p_number].n_blocks;
 }
 
+int Allocator::get_size(int p_number)
+{   
+    if (p_number == -1)
+    {
+        return 0;
+    }
+    return this->hash_map[p_number].n_blocks;
+}
+
+
 void Allocator::realloc(Pointer &p, size_t N)
 {
+    Pointer moved = this->alloc(N);
+
+    void *dist = moved.get();
+    void *orig = p.get();
+
+    memcpy(dist, orig, p.get_size());
+
+    p = moved;
 
 }
 
@@ -113,5 +132,10 @@ Pointer::Pointer(Allocator *allocator, int number): allocator(allocator), number
 void* Pointer::get() const
 {
     return this->allocator->resolve(this->number);
+}
+
+int Pointer::get_size() const
+{
+    return this->allocator->get_size(this->number);
 }
 

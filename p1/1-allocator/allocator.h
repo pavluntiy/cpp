@@ -30,6 +30,7 @@ private:
 public:
     Pointer(Allocator *allocator = nullptr, int number = -1);
     void* get() const; 
+    int get_size() const;
 };
 
 class Allocator {
@@ -73,6 +74,7 @@ protected:
     friend class Pointer;
 
     void *resolve(int);
+    int get_size(int);
 
 public:
     Allocator(void*, size_t);
