@@ -72,12 +72,16 @@ protected:
     size_t get_size_bytes(index_t);
 
     size_t bytes_to_blocks(size_t);
+    size_t count_free_blocks(index_t);
     index_t find_position(size_t);
     void fill_map(index_t, size_t, bool);
 
     index_t insert(index_t, size_t);
     void remove(index_t);
     void shrink(index_t, size_t);
+
+    bool realloc_move(Pointer &p, size_t);
+    bool realloc_inplace(Pointer &p, size_t);
 
 
 
@@ -86,9 +90,9 @@ protected:
 public:
     Allocator(void*, size_t);
     
-    Pointer alloc(size_t N);
-    void realloc(Pointer &p, size_t N);
-    void free(Pointer &p);
+    Pointer alloc(size_t);
+    void realloc(Pointer& , size_t);
+    void free(Pointer&);
 
     void defrag() {}
     std::string dump();

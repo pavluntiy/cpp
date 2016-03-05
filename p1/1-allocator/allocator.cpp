@@ -32,23 +32,29 @@ size_t Allocator::bytes_to_blocks(size_t bytes)
     return (bytes + this->block_size - 1)/this->block_size;
 }
 
+size_t Allocator::count_free_blocks(index_t start_block)
+{
+    size_t free_blocks_count = 0;
+    for(size_t i = start_block; i < this->total_blocks; ++i){
+        if(this->memory_map[i]){
+            break;
+        }
+        else 
+        {
+            ++free_blocks_count;
+        }
+    }
+
+    return free_blocks_count;
+}
+
 index_t Allocator::find_position(size_t required_blocks)
 {   
 
     index_t position = -1;
-    bool found = false;
     for(index_t i = 0; i < this->total_blocks; ++i)
     {
-        size_t free_blocks_count = 0;
-        for(size_t j = i; j < this->total_blocks; ++j){
-            if(this->memory_map[j]){
-                break;
-            }
-            else 
-            {
-                ++free_blocks_count;
-            }
-        }
+        size_t free_blocks_count = count_free_blocks(i);  
         if(free_blocks_count >= required_blocks){
             position = i;
             break;
@@ -153,24 +159,9 @@ void Allocator::shrink(index_t pointer_id, size_t required_blocks)
         this->hash_map[pointer_id].n_blocks = required_blocks;
 }
 
-void Allocator::realloc(Pointer &p, size_t new_size)
-{
-    index_t pointer_id = p.get_id();
-    if(pointer_id == -1)
-    {
-        p = alloc(new_size);
-    }
-
-    size_t original_blocks = get_size_blocks(pointer_id);
-    size_t required_blocks = bytes_to_blocks(new_size);
-
-
-    if(required_blocks <= original_blocks){
-        shrink(pointer_id, required_blocks);
-    }
-    else
-    {
-
+bool Allocator::realloc_move(Pointer &p, size_t required_blocks)
+{       
+        index_t pointer_id = p.get_id();
         index_t new_position = find_position(required_blocks);
 
         if(new_position == -1)
@@ -183,6 +174,55 @@ void Allocator::realloc(Pointer &p, size_t new_size)
         this->hash_map[pointer_id].start_block = new_position;
         auto destination = resolve(pointer_id);
         memcpy(origin, destination, get_size_bytes(pointer_id));
+
+        return true;
+}
+
+bool Allocator::realloc_inplace(Pointer &p, size_t required_blocks)
+{   
+    index_t pointer_id = p.get_id();
+    size_t current_size = get_size_blocks(pointer_id);
+    index_t end_block = get_start_block(pointer_id) + current_size;
+
+    std::cout << "Before " << hash_map[pointer_id].n_blocks << " " << hash_map[pointer_id].start_block << "\n";
+
+
+    if(count_free_blocks(end_block) + current_size >= required_blocks)
+    {
+        fill_map(end_block, required_blocks - current_size, true);
+        hash_map[pointer_id].n_blocks = required_blocks;
+        std::cout << "After " << hash_map[pointer_id].n_blocks << " " << hash_map[pointer_id].start_block << "\n";
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+
+}
+
+void Allocator::realloc(Pointer &p, size_t new_size)
+{
+    index_t pointer_id = p.get_id();
+    if(pointer_id == -1)
+    {
+        p = alloc(new_size);
+        return;
+    }
+
+    size_t original_blocks = get_size_blocks(pointer_id);
+    size_t required_blocks = bytes_to_blocks(new_size);
+
+
+    if(required_blocks <= original_blocks){
+        shrink(pointer_id, required_blocks);
+    }
+    else
+    {
+
+        if(!realloc_inplace(p, required_blocks)){
+            realloc_move(p, required_blocks);
+        }
     }
 
 }
