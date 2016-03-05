@@ -266,6 +266,31 @@ void Allocator::free(Pointer &p)
 
 void Allocator::defrag()
 {
+    this->defragged = !this->defragged;
+
+    for(index_t pointer_id = 0; pointer_id < this->total_blocks; ++pointer_id)
+    {
+        if(get_start_block(pointer_id) != -1)
+        {
+            index_t start_block = get_start_block(pointer_id);
+
+            size_t required_blocks = get_size_blocks(pointer_id);
+
+            index_t new_position = find_position(required_blocks);
+
+            if(new_position == -1)
+            {   
+                throw AllocError(AllocErrorType::NoMemory);
+            }
+
+            move(start_block, new_position, required_blocks, required_blocks);
+
+            set_start_block(pointer_id, new_position);
+            set_n_blocks(pointer_id, required_blocks);
+        }
+
+    }
+
 
 }
 
@@ -297,13 +322,13 @@ std::string Allocator::dump()
             result << "\t\tstart_block: " << get_start_block(pointer_id) << "\n";
             result << "\t\tn_blocks: " << get_size_blocks(pointer_id) << "\n";
             result << "Contains:\n";
-            result << std::hex;
-            unsigned char *start = (unsigned char*)resolve(pointer_id);
-            for(size_t i = 0; i < get_size_bytes(pointer_id); ++i)
-            {
-                result << "\\x" << (int) start[i] << " ";
-            }    
-            result << "\n:::::::::::::\n";
+            // result << std::hex;
+            // unsigned char *start = (unsigned char*)resolve(pointer_id);
+            // for(size_t i = 0; i < get_size_bytes(pointer_id); ++i)
+            // {
+            //     result << "\\x" << (int) start[i] << " ";
+            // }    
+            // result << "\n:::::::::::::\n";
         }
     }
 
