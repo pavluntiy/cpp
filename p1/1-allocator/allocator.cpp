@@ -16,17 +16,15 @@ Allocator::Allocator(void *base, size_t buf_size):base(base), buf_size(buf_size)
 	this->block_size = 32;
 	this->memory_map = (bool*)(base);
 	this->total_blocks = buf_size / (2*this->block_size + 2 * sizeof(bool) + sizeof(PointerInfo)); 
-    this->hash_map = static_cast<PointerInfo*>((void*)(void*)(this->memory_map) + 2 * this->total_blocks * sizeof(bool));
+    this->hash_map = (PointerInfo*)(void*)((char*)(void*)this->memory_map + 2 * this->total_blocks * sizeof(bool));
 
 
     memset(hash_map, -1, total_blocks  * sizeof(PointerInfo));
 
 
-	this->begin = (this->total_blocks * sizeof(PointerInfo)) + (void*)(this->hash_map);
-	this->end = (void*)(this->begin) + total_blocks * block_size;
+	this->begin = (void*)(this->total_blocks * sizeof(PointerInfo) + (char*)(this->hash_map));
+	this->end = (void*)((char*)this->begin + total_blocks * block_size);
 
-    // std::cout << base + (2 * sizeof(bool) + sizeof(PointerInfo)) * total_blocks << " " << this->begin << "\n";
-    // std::cout << this->begin + 2 * this->total_blocks * block_size << " " << base + buf_size<< "\n";
 }
 
 void Allocator::set_start_block(index_t pointer_id, index_t start_block)
@@ -139,7 +137,7 @@ Pointer Allocator::alloc(size_t required_bytes)
 
 void* Allocator::get_address(index_t start_block)
 {
-    return this->begin + start_block * this->block_size;
+    return (void*)((char*) this->begin + start_block * this->block_size);
 }
 
 void* Allocator::resolve(index_t pointer_id)
