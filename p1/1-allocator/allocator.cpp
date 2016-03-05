@@ -137,6 +137,11 @@ Pointer Allocator::alloc(size_t required_bytes)
 
 }
 
+void* Allocator::get_address(index_t start_block)
+{
+    return this->begin + start_block * this->block_size;
+}
+
 void* Allocator::resolve(index_t pointer_id)
 {   
 
@@ -145,7 +150,7 @@ void* Allocator::resolve(index_t pointer_id)
         return nullptr;
     }
 
-    return this->begin + get_start_block(pointer_id) * this->block_size;
+    return get_address(get_start_block(pointer_id));
 }
 
 size_t Allocator::get_size_bytes(index_t pointer_id)
@@ -176,6 +181,19 @@ void Allocator::shrink(index_t pointer_id, size_t required_blocks)
         this->hash_map[pointer_id].n_blocks = required_blocks;
 }
 
+void Allocator::move(index_t original_start, index_t final_start, size_t original_blocks, size_t final_blocks)
+{
+        void* origin = get_address(original_start);
+        void* destination = get_address(final_start);
+
+        size_t bytes = std::min(original_blocks, final_blocks) * block_size;
+
+        memcpy(destination, origin, bytes);
+
+        fill_map(original_start, original_blocks, false);
+        fill_map(final_start, final_blocks, true);
+}
+
 bool Allocator::realloc_move(Pointer &p, size_t required_blocks)
 {       
         index_t pointer_id = p.get_id();
@@ -186,25 +204,10 @@ bool Allocator::realloc_move(Pointer &p, size_t required_blocks)
             throw AllocError(AllocErrorType::NoMemory);
         }
 
-        void* origin = resolve(pointer_id);
-
-        index_t original_start = get_start_block(pointer_id);
-        size_t original_blocks = get_size_blocks(pointer_id);
-        size_t original_size_bytes = get_size_bytes(pointer_id);
-
-        set_start_block(pointer_id, new_position);
+        move(get_start_block(pointer_id), new_position, get_size_blocks(pointer_id), required_blocks);
         set_n_blocks(pointer_id, required_blocks);
-
-        void* destination = resolve(pointer_id);
-        memcpy(destination, origin, original_size_bytes);
-
-        fill_map(original_start, original_blocks, false);
-
-        index_t final_start = get_start_block(pointer_id);
-        size_t final_blocks = get_size_blocks(pointer_id);
-
-        fill_map(final_start, final_blocks, true);
-
+        set_start_block(pointer_id, new_position);
+  
         return true;
 }
 
@@ -261,6 +264,10 @@ void Allocator::free(Pointer &p)
     p.set_id(-1); 
 }
 
+void Allocator::defrag()
+{
+
+}
 
 std::string Allocator::dump()
 {

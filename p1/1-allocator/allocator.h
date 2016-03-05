@@ -68,7 +68,9 @@ protected:
 
     friend class Pointer;
 
+    void* get_address(index_t);
     void* resolve(index_t);
+
     size_t get_size_blocks(index_t);
     index_t get_start_block(index_t);
     size_t get_size_bytes(index_t);
@@ -76,10 +78,13 @@ protected:
     size_t bytes_to_blocks(size_t);
     size_t count_free_blocks(index_t);
     index_t find_position(size_t);
+
     void fill_map(index_t, size_t, bool);
 
     index_t insert(index_t, size_t);
     index_t remove(index_t);
+
+    void move(index_t, index_t, size_t, size_t);
 
     void shrink(index_t, size_t);
     bool realloc_move(Pointer &p, size_t);
@@ -99,9 +104,7 @@ public:
     void realloc(Pointer& , size_t);
     void free(Pointer&);
 
-    void defrag() {
-
-    }
+    void defrag();
     std::string dump();
 
 };
