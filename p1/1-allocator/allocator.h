@@ -77,11 +77,14 @@ protected:
     void fill_map(index_t, size_t, bool);
 
     index_t insert(index_t, size_t);
-    void remove(index_t);
+    index_t remove(index_t);
+    
     void shrink(index_t, size_t);
-
     bool realloc_move(Pointer &p, size_t);
     bool realloc_inplace(Pointer &p, size_t);
+
+    void set_start_block(index_t, index_t);
+    void set_n_blocks(index_t, size_t);
 
 
 
@@ -95,7 +98,7 @@ public:
     void free(Pointer&);
 
     void defrag() {
-        
+
     }
     std::string dump();
 

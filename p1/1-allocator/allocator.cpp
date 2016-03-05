@@ -8,6 +8,7 @@
 
 Allocator::Allocator(void *base, size_t buf_size):base(base), buf_size(buf_size)
 {
+    memset(base, 0, buf_size);
     this->total_pointers = 0;
 
 	this->block_size = 32;
@@ -17,10 +18,19 @@ Allocator::Allocator(void *base, size_t buf_size):base(base), buf_size(buf_size)
 
 
     memset(hash_map, -1, total_blocks  * sizeof(PointerInfo));
-    memset(memory_map, 0, total_blocks * sizeof(bool));
 
 	this->begin = (this->total_blocks * sizeof(PointerInfo)) + (void*)(this->hash_map);
 	this->end = (void*)(this->begin) + total_blocks * block_size;
+}
+
+void Allocator::set_start_block(index_t pointer_id, index_t start_block)
+{
+    this->hash_map[pointer_id].start_block = start_block;
+}
+
+void Allocator::set_n_blocks(index_t pointer_id, size_t n_blocks)
+{
+    this->hash_map[pointer_id].n_blocks = n_blocks;
 }
 
 
@@ -75,18 +85,20 @@ index_t Allocator::insert(index_t start_block, size_t required_blocks)
         }
     }
 
-    this->hash_map[pointer_id].start_block = start_block;
-    this->hash_map[pointer_id].n_blocks = required_blocks;
+    set_start_block(pointer_id, start_block);
+    set_n_blocks(pointer_id, required_blocks);
 
     return pointer_id;
 }
 
-void Allocator::remove(index_t pointer_id)
+index_t Allocator::remove(index_t pointer_id)
 {
 
-    hash_map[pointer_id].n_blocks = -1;
-    hash_map[pointer_id].start_block = -1;
+    set_start_block(pointer_id, -1);
+    set_n_blocks(pointer_id, -1);
     total_pointers--;
+
+    return -1;
 }
 
 
@@ -166,11 +178,25 @@ bool Allocator::realloc_move(Pointer &p, size_t required_blocks)
         {
             throw AllocError(AllocErrorType::NoMemory);
         }
-        auto origin = resolve(pointer_id);
-        fill_map(get_start_block(pointer_id), get_size_blocks(pointer_id), false);
-        this->hash_map[pointer_id].start_block = new_position;
-        auto destination = resolve(pointer_id);
-        memcpy(origin, destination, get_size_bytes(pointer_id));
+
+        void* origin = resolve(pointer_id);
+
+        index_t original_start = get_start_block(pointer_id);
+        size_t original_blocks = get_size_blocks(pointer_id);
+        size_t original_size_bytes = get_size_bytes(pointer_id);
+
+        set_start_block(pointer_id, new_position);
+        set_n_blocks(pointer_id, required_blocks);
+
+        void* destination = resolve(pointer_id);
+        memcpy(destination, origin, original_size_bytes);
+
+        fill_map(original_start, original_blocks, false);
+
+        index_t final_start = get_start_block(pointer_id);
+        size_t final_blocks = get_size_blocks(pointer_id);
+
+        fill_map(final_start, final_blocks, true);
 
         return true;
 }
@@ -251,13 +277,21 @@ std::string Allocator::dump()
 
     // result << "\n=====================\n";
 
-    for(index_t i = 0; i < total_blocks; ++i)
+    for(index_t pointer_id = 0; pointer_id < total_blocks; ++pointer_id)
     {
-        if(hash_map[i].start_block != -1)
+        if(get_start_block(pointer_id) != -1)
         {
-            result << "Pointer " << i << ":\n";
-            result << "\t\tstart_block: " << hash_map[i].start_block << "\n";
-            result << "\t\tn_blocks: " << hash_map[i].n_blocks << "\n";    
+            result << "Pointer_id" << pointer_id << ":\n";
+            result << "\t\tstart_block: " << get_start_block(pointer_id) << "\n";
+            result << "\t\tn_blocks: " << get_size_blocks(pointer_id) << "\n";
+            result << "Contains:\n";
+            result << std::hex;
+            unsigned char *start = (unsigned char*)resolve(pointer_id);
+            for(size_t i = 0; i < get_size_bytes(pointer_id); ++i)
+            {
+                result << "\\x" << (int) start[i] << " ";
+            }    
+            result << "\n:::::::::::::\n";
         }
     }
 
