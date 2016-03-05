@@ -1,6 +1,8 @@
 #include <stdexcept>
 #include <string>
 
+using index_t = int;
+
 enum class AllocErrorType {
     InvalidFree,
     NoMemory,
@@ -23,14 +25,18 @@ class Allocator;
 
 class Pointer {
 private:
-    void *pointer;
+    // void *pointer;
     Allocator* allocator;
-    int number;
+    index_t pointer_id;
+
+    index_t get_id() const;
+    void set_id(index_t);
+
     friend class Allocator;
 public:
-    Pointer(Allocator *allocator = nullptr, int number = -1);
+    Pointer(Allocator *allocator = nullptr, index_t pointer_id = -1);
     void* get() const; 
-    int get_size() const;
+    // size_t get_size() const;
 };
 
 class Allocator {
@@ -73,8 +79,14 @@ protected:
 
     friend class Pointer;
 
-    void *resolve(int);
-    int get_size(int);
+    void* __resolve__(index_t);
+    size_t __get_size_blocks__(index_t);
+    index_t __get_start_block__(index_t);
+    size_t __get_size_bytes__(index_t);
+
+    void unregister(index_t);
+
+
 
 public:
     Allocator(void*, size_t);
