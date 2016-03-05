@@ -7,20 +7,26 @@
 
 
 Allocator::Allocator(void *base, size_t buf_size):base(base), buf_size(buf_size)
-{
+{   
+    defragged = false;
+
     memset(base, 0, buf_size);
     this->total_pointers = 0;
 
 	this->block_size = 32;
 	this->memory_map = (bool*)(base);
-	this->total_blocks = buf_size / (2  * this->block_size + 2 * sizeof(bool) + sizeof(PointerInfo)); 
+	this->total_blocks = buf_size / (2*this->block_size + 2 * sizeof(bool) + sizeof(PointerInfo)); 
     this->hash_map = static_cast<PointerInfo*>((void*)(void*)(this->memory_map) + 2 * this->total_blocks * sizeof(bool));
 
 
     memset(hash_map, -1, total_blocks  * sizeof(PointerInfo));
 
+
 	this->begin = (this->total_blocks * sizeof(PointerInfo)) + (void*)(this->hash_map);
 	this->end = (void*)(this->begin) + total_blocks * block_size;
+
+    // std::cout << base + (2 * sizeof(bool) + sizeof(PointerInfo)) * total_blocks << " " << this->begin << "\n";
+    // std::cout << this->begin + 2 * this->total_blocks * block_size << " " << base + buf_size<< "\n";
 }
 
 void Allocator::set_start_block(index_t pointer_id, index_t start_block)
@@ -42,7 +48,7 @@ size_t Allocator::bytes_to_blocks(size_t bytes)
 size_t Allocator::count_free_blocks(index_t start_block)
 {
     size_t free_blocks_count = 0;
-    for(size_t i = start_block; i < this->total_blocks; ++i){
+    for(size_t i = start_block; i < this->total_blocks + defragged * total_blocks; ++i){
         if(this->memory_map[i]){
             break;
         }
@@ -59,7 +65,7 @@ index_t Allocator::find_position(size_t required_blocks)
 {   
 
     index_t position = -1;
-    for(index_t i = 0; i < this->total_blocks; ++i)
+    for(index_t i = total_blocks * defragged; i < this->total_blocks + total_blocks * defragged; ++i)
     {
         size_t free_blocks_count = count_free_blocks(i);  
         if(free_blocks_count >= required_blocks){
@@ -121,6 +127,7 @@ Pointer Allocator::alloc(size_t required_bytes)
     {   
     	throw AllocError(AllocErrorType::NoMemory);
     }
+
 
     fill_map(position, required_blocks);
 
@@ -232,7 +239,6 @@ void Allocator::realloc(Pointer &p, size_t new_size)
     size_t original_blocks = get_size_blocks(pointer_id);
     size_t required_blocks = bytes_to_blocks(new_size);
 
-
     if(required_blocks <= original_blocks){
         shrink(pointer_id, required_blocks);
     }
@@ -248,11 +254,10 @@ void Allocator::realloc(Pointer &p, size_t new_size)
 
 void Allocator::free(Pointer &p)
 {   
-
-    index_t start_block = get_start_block(p.pointer_id);
-    size_t n_blocks = get_size_blocks(p.pointer_id);
+    index_t start_block = get_start_block(p.get_id());
+    size_t n_blocks = get_size_blocks(p.get_id());
 	fill_map(start_block, n_blocks, false);
-    remove(p.pointer_id);
+    remove(p.get_id());
     p.set_id(-1); 
 }
 

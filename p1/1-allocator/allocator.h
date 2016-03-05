@@ -60,6 +60,8 @@ protected:
     void *begin;
     void *end;
 
+    int defragged;
+
     int total_pointers;
 
     size_t allocated_size;
@@ -78,7 +80,7 @@ protected:
 
     index_t insert(index_t, size_t);
     index_t remove(index_t);
-    
+
     void shrink(index_t, size_t);
     bool realloc_move(Pointer &p, size_t);
     bool realloc_inplace(Pointer &p, size_t);
