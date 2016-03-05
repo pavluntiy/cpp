@@ -41,20 +41,7 @@ public:
 
 class Allocator {
 protected:
-
-    // struct BlockList;
-    // {
-    //     BlockList *next;
-    //     void *block;
-    //     size_t size;
-
-    //     BlockList(BlockList *next = nullptr, void *block = nullptr, size_t size = 0):
-    //         next(next), block(block), size(size)
-    //     {}
-    // };
-
-    // BlockList *blockList;
-    struct MapEntry
+    struct PointerInfo
     {
         int start_block;
         int n_blocks;
@@ -65,7 +52,7 @@ protected:
     size_t n_blocks;
 
     bool *memory_map;
-    MapEntry *hash_map;
+    PointerInfo *hash_map;
 
     size_t buf_size;
     size_t list_size;
@@ -79,12 +66,19 @@ protected:
 
     friend class Pointer;
 
-    void* __resolve__(index_t);
-    size_t __get_size_blocks__(index_t);
-    index_t __get_start_block__(index_t);
-    size_t __get_size_bytes__(index_t);
+    void* resolve(index_t);
+    size_t get_size_blocks(index_t);
+    index_t get_start_block(index_t);
+    size_t get_size_bytes(index_t);
 
-    void unregister(index_t);
+    size_t bytes_to_blocks(size_t);
+    index_t find_position(size_t);
+    void fill_map(index_t, size_t, bool);
+
+    index_t insert(index_t, size_t);
+    void remove(index_t);
+
+
 
 
 
