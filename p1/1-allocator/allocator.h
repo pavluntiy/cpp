@@ -94,7 +94,9 @@ public:
     void realloc(Pointer& , size_t);
     void free(Pointer&);
 
-    void defrag() {}
+    void defrag() {
+        
+    }
     std::string dump();
 
 };

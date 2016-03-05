@@ -11,19 +11,16 @@ Allocator::Allocator(void *base, size_t buf_size):base(base), buf_size(buf_size)
     this->total_pointers = 0;
 
 	this->block_size = 32;
-	this->memory_map = static_cast<bool*>(base);
+	this->memory_map = (bool*)(base);
 	this->total_blocks = buf_size / (2  * this->block_size + 2 * sizeof(bool) + sizeof(PointerInfo)); 
-	this->list_size = this->total_blocks;
-    this->hash_map = static_cast<PointerInfo*>(static_cast<void*>(this->memory_map) + 2 * this->total_blocks * sizeof(bool));
+    this->hash_map = static_cast<PointerInfo*>((void*)(void*)(this->memory_map) + 2 * this->total_blocks * sizeof(bool));
+
+
     memset(hash_map, -1, total_blocks  * sizeof(PointerInfo));
+    memset(memory_map, 0, total_blocks * sizeof(bool));
 
-	for(size_t i = 0; i < this->list_size; ++i){
-		this->memory_map[i] = false;
-	}
-
-	this->begin = (this->total_blocks * sizeof(PointerInfo)) + this->hash_map;
-	this->end = static_cast<char*>(this->begin) + total_blocks * block_size;
-
+	this->begin = (this->total_blocks * sizeof(PointerInfo)) + (void*)(this->hash_map);
+	this->end = (void*)(this->begin) + total_blocks * block_size;
 }
 
 
@@ -105,8 +102,6 @@ void Allocator::fill_map(index_t start_block, size_t n_blocks, bool value=true)
 Pointer Allocator::alloc(size_t required_bytes)
 {
 
-    
-
     size_t required_blocks = bytes_to_blocks(required_bytes);
     index_t position = find_position(required_blocks);
 
@@ -125,15 +120,17 @@ Pointer Allocator::alloc(size_t required_bytes)
 
 void* Allocator::resolve(index_t pointer_id)
 {   
+
     if (pointer_id == -1)
     {
         return nullptr;
     }
-    return this->begin + get_size_bytes(pointer_id);
+
+    return this->begin + get_start_block(pointer_id) * this->block_size;
 }
 
 size_t Allocator::get_size_bytes(index_t pointer_id)
-{
+{   
     return this->block_size * get_size_blocks(pointer_id);
 }
 
@@ -143,6 +140,7 @@ size_t Allocator::get_size_blocks(index_t pointer_id)
     {
         return 0;
     }
+
     return this->hash_map[pointer_id].n_blocks;
 }
 
@@ -168,7 +166,6 @@ bool Allocator::realloc_move(Pointer &p, size_t required_blocks)
         {
             throw AllocError(AllocErrorType::NoMemory);
         }
-
         auto origin = resolve(pointer_id);
         fill_map(get_start_block(pointer_id), get_size_blocks(pointer_id), false);
         this->hash_map[pointer_id].start_block = new_position;
@@ -184,14 +181,10 @@ bool Allocator::realloc_inplace(Pointer &p, size_t required_blocks)
     size_t current_size = get_size_blocks(pointer_id);
     index_t end_block = get_start_block(pointer_id) + current_size;
 
-    std::cout << "Before " << hash_map[pointer_id].n_blocks << " " << hash_map[pointer_id].start_block << "\n";
-
-
     if(count_free_blocks(end_block) + current_size >= required_blocks)
-    {
+    {   
         fill_map(end_block, required_blocks - current_size, true);
         hash_map[pointer_id].n_blocks = required_blocks;
-        std::cout << "After " << hash_map[pointer_id].n_blocks << " " << hash_map[pointer_id].start_block << "\n";
         return true;
     }
     else
@@ -219,7 +212,6 @@ void Allocator::realloc(Pointer &p, size_t new_size)
     }
     else
     {
-
         if(!realloc_inplace(p, required_blocks)){
             realloc_move(p, required_blocks);
         }
@@ -236,8 +228,6 @@ void Allocator::free(Pointer &p)
 	fill_map(start_block, n_blocks, false);
     remove(p.pointer_id);
     p.set_id(-1); 
-
-
 }
 
 
