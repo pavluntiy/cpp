@@ -90,7 +90,7 @@ public:
     void free(Pointer &p);
 
     void defrag() {}
-    std::string dump() { return ""; }
+    std::string dump();
 
 };
 

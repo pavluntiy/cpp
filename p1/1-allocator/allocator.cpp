@@ -1,6 +1,7 @@
 #include "allocator.h"
 #include "cstdlib"
 #include <iostream>
+#include <sstream>
 #include <cstring>
 
 
@@ -14,6 +15,7 @@ Allocator::Allocator(void *base, size_t buf_size):base(base), buf_size(buf_size)
 	this->n_blocks = buf_size / (2  * this->block_size + 2 * sizeof(bool) + sizeof(PointerInfo)); 
 	this->list_size = this->n_blocks;
     this->hash_map = static_cast<PointerInfo*>(static_cast<void*>(this->memory_map) + 2 * this->n_blocks * sizeof(bool));
+    memset(hash_map, -1, n_blocks  * sizeof(PointerInfo));
 
 	for(size_t i = 0; i < this->list_size; ++i){
 		this->memory_map[i] = false;
@@ -57,11 +59,21 @@ index_t Allocator::find_position(size_t required_blocks)
 }
 
 
-index_t Allocator::insert(index_t start_block, size_t n_blocks)
+index_t Allocator::insert(index_t start_block, size_t required_blocks)
 {
-    index_t pointer_id = this->total_pointers++;
+    index_t pointer_id = -1;
+
+    for(index_t i = 0; i < this->n_blocks; ++i)
+    {
+        if(hash_map[i].start_block == -1)
+        {
+            pointer_id = i;
+            break;
+        }
+    }
+
     this->hash_map[pointer_id].start_block = start_block;
-    this->hash_map[pointer_id].n_blocks = n_blocks;
+    this->hash_map[pointer_id].n_blocks = required_blocks;
 
     return pointer_id;
 }
@@ -171,7 +183,43 @@ void Allocator::free(Pointer &p)
 	fill_map(start_block, n_blocks, false);
     remove(p.pointer_id);
     p.set_id(-1); 
-    
+
+
+}
+
+
+std::string Allocator::dump()
+{
+    std::stringstream result;
+
+    // size_t free_blocks = 0;
+    // for(index_t i = 0; i < n_blocks; ++i)
+    // {
+    //     if(memory_map[i] == false && free_blocks > 0)
+    //     {
+    //         result << "\tUsed memory " << free_blocks << " (from " << i - free_blocks << " to " << i - 1 << ")\n"; 
+    //         free_blocks = 0;
+    //     }
+    //     else
+    //     {
+    //         free_blocks++;
+    //     }
+    // }
+
+    // result << "\n=====================\n";
+
+    for(index_t i = 0; i < n_blocks; ++i)
+    {
+        if(hash_map[i].start_block != -1)
+        {
+            result << "Pointer " << i << ":\n";
+            result << "\t\tstart_block: " << hash_map[i].start_block << "\n";
+            result << "\t\tn_blocks: " << hash_map[i].n_blocks << "\n";    
+        }
+    }
+
+    return result.str();
+
 }
 
 
