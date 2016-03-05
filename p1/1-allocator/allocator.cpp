@@ -12,17 +12,17 @@ Allocator::Allocator(void *base, size_t buf_size):base(base), buf_size(buf_size)
 
 	this->block_size = 32;
 	this->memory_map = static_cast<bool*>(base);
-	this->n_blocks = buf_size / (2  * this->block_size + 2 * sizeof(bool) + sizeof(PointerInfo)); 
-	this->list_size = this->n_blocks;
-    this->hash_map = static_cast<PointerInfo*>(static_cast<void*>(this->memory_map) + 2 * this->n_blocks * sizeof(bool));
-    memset(hash_map, -1, n_blocks  * sizeof(PointerInfo));
+	this->total_blocks = buf_size / (2  * this->block_size + 2 * sizeof(bool) + sizeof(PointerInfo)); 
+	this->list_size = this->total_blocks;
+    this->hash_map = static_cast<PointerInfo*>(static_cast<void*>(this->memory_map) + 2 * this->total_blocks * sizeof(bool));
+    memset(hash_map, -1, total_blocks  * sizeof(PointerInfo));
 
 	for(size_t i = 0; i < this->list_size; ++i){
 		this->memory_map[i] = false;
 	}
 
-	this->begin = (this->n_blocks * sizeof(PointerInfo)) + this->hash_map;
-	this->end = static_cast<char*>(this->begin) + n_blocks * block_size;
+	this->begin = (this->total_blocks * sizeof(PointerInfo)) + this->hash_map;
+	this->end = static_cast<char*>(this->begin) + total_blocks * block_size;
 
 }
 
@@ -37,10 +37,10 @@ index_t Allocator::find_position(size_t required_blocks)
 
     index_t position = -1;
     bool found = false;
-    for(index_t i = 0; i < this->n_blocks; ++i)
+    for(index_t i = 0; i < this->total_blocks; ++i)
     {
         size_t free_blocks_count = 0;
-        for(size_t j = i; j < this->n_blocks; ++j){
+        for(size_t j = i; j < this->total_blocks; ++j){
             if(this->memory_map[j]){
                 break;
             }
@@ -63,7 +63,7 @@ index_t Allocator::insert(index_t start_block, size_t required_blocks)
 {
     index_t pointer_id = -1;
 
-    for(index_t i = 0; i < this->n_blocks; ++i)
+    for(index_t i = 0; i < this->total_blocks; ++i)
     {
         if(hash_map[i].start_block == -1)
         {
@@ -145,31 +145,44 @@ index_t Allocator::get_start_block(index_t pointer_id)
     return hash_map[pointer_id].start_block;
 }
 
+void Allocator::shrink(index_t pointer_id, size_t required_blocks)
+{
+        index_t start_block = get_start_block(pointer_id);
+        size_t original_blocks = get_size_blocks(pointer_id);
+        fill_map(start_block + required_blocks, original_blocks - required_blocks, false);    
+        this->hash_map[pointer_id].n_blocks = required_blocks;
+}
+
 void Allocator::realloc(Pointer &p, size_t new_size)
 {
-
-    size_t orig_size = get_size_blocks(p.get_id());
-    index_t start = get_start_block(p.get_id());
-    size_t n_blocks = (new_size + this->block_size - 1)/this->block_size;
-
-    if(n_blocks <= orig_size){
-        std::cout << "LOLOL\n";
-        for(index_t i = start + n_blocks; i < start + orig_size; ++i){
-            this->memory_map[i] = false;
-        }
-        this->hash_map[p.get_id()].n_blocks = n_blocks;
-
+    index_t pointer_id = p.get_id();
+    if(pointer_id == -1)
+    {
+        p = alloc(new_size);
     }
-    else{
 
-        Pointer moved = this->alloc(new_size);
+    size_t original_blocks = get_size_blocks(pointer_id);
+    size_t required_blocks = bytes_to_blocks(new_size);
 
-        void *dist = moved.get();
-        void *orig = p.get();
 
-        memcpy(dist, orig, get_size_bytes(p.pointer_id));
+    if(required_blocks <= original_blocks){
+        shrink(pointer_id, required_blocks);
+    }
+    else
+    {
 
-        p = moved;
+        index_t new_position = find_position(required_blocks);
+
+        if(new_position == -1)
+        {
+            throw AllocError(AllocErrorType::NoMemory);
+        }
+
+        auto origin = resolve(pointer_id);
+        fill_map(get_start_block(pointer_id), get_size_blocks(pointer_id), false);
+        this->hash_map[pointer_id].start_block = new_position;
+        auto destination = resolve(pointer_id);
+        memcpy(origin, destination, get_size_bytes(pointer_id));
     }
 
 }
@@ -208,7 +221,7 @@ std::string Allocator::dump()
 
     // result << "\n=====================\n";
 
-    for(index_t i = 0; i < n_blocks; ++i)
+    for(index_t i = 0; i < total_blocks; ++i)
     {
         if(hash_map[i].start_block != -1)
         {

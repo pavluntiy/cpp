@@ -105,7 +105,6 @@ TEST(Allocator, AllocReuse) {
     vector<Pointer> ptrs;
     int size = 135;
 
-
     ASSERT_TRUE(fillUp(a, size, ptrs));
     a.free(ptrs[1]);
 

@@ -49,7 +49,7 @@ protected:
 
     size_t block_size;
 
-    size_t n_blocks;
+    size_t total_blocks;
 
     bool *memory_map;
     PointerInfo *hash_map;
@@ -77,6 +77,7 @@ protected:
 
     index_t insert(index_t, size_t);
     void remove(index_t);
+    void shrink(index_t, size_t);
 
 
 
