@@ -33,14 +33,12 @@ struct MySocket
 
 	void close()
 	{
-		// flush();
 		::close(sock);
 		::shutdown(sock, SHUT_RDWR);
 	}
 
 	void flush()
 	{
-		// std::cout << "MESSAGE " << sock <<"\n\t" << this->out_buf;
 		send(sock, this->out_buf.c_str(), out_buf.size(), MSG_NOSIGNAL);
 		this->out_buf = "";
 	}
@@ -76,8 +74,10 @@ MySocket& operator << (MySocket& s, std::string str)
 }
 
 MySocket& operator >> (MySocket& s, std::string &str)
-{
+{	
+	s.read();
 	str = s.in_buf;
+	s.reset();
 	return s;
 }
 
@@ -115,22 +115,6 @@ class Server
 		MasterEvent.events = EPOLLIN|EPOLLET;
 
 		epoll_ctl(this->epoll, EPOLL_CTL_ADD, this->listener, &MasterEvent);
-	}
-
-
-	void read_socket(int sock)
-	{
-		this->sockets[sock].read();
-	}
-
-	void flush_socket(int sock)
-	{	
-		this->sockets[sock].flush();
-	}
-
-	void write_socket(int sock, std::string msg)
-	{
-		this->sockets[sock] << msg;
 	}
 
 	MySocket& add_socket(int sock)
@@ -176,8 +160,7 @@ public:
 			{
 				if((events[i].events & EPOLLERR)||(events[i].events & EPOLLHUP))
 	    		{
-	    			std::cout << "ERROR\n";
-	    			this->sockets[events[i].data.fd].close();
+	    			error_event(this->sockets[events[i].data.fd]);
 	    		}
 	    		else
 				{
@@ -191,19 +174,12 @@ public:
 						auto &active_socket = this->sockets[events[i].data.fd];
 						try
 						{
-							active_socket.read();
-							std::string msg;
-							active_socket >> msg;
-							active_socket.reset();
-							broadcast(msg);
-							
+							read_event(active_socket);
 						}
 						catch(SocketException)
 						{
-							std::cout << "connection closed\n";
+							disconnect_event(active_socket);
 						}
-
-						
 
 					}
 				}
@@ -216,6 +192,26 @@ public:
 		std::cout << "accepted connection" << std::endl;
 		socket << "Welcome\n";
 		socket.flush();
+	}
+
+	void error_event(MySocket &socket)
+	{
+		std::cout << "ERROR\n";
+	   	socket.close();
+	}
+
+	void disconnect_event(MySocket &socket)
+	{
+		std::cout << "connection closed\n";
+		socket.close();
+	}
+
+	void read_event(MySocket &socket)
+	{
+		std::string msg;
+		socket >> msg;
+		std::cout << "Message from " << socket.sock << ":\n\t" << msg << "\n";
+		broadcast(msg);
 	}
 
 };
