@@ -8,6 +8,16 @@
 
 #include <fcntl.h>
 #include <sys/epoll.h>
+#include <unistd.h>
+#include <string>
+
+// std::string read_message(int fd)
+// {
+// 	while((n = recv(events[i].data.fd, buf, sizeof(buf), MSG_NOSIGNAL)) > 0)
+// 	{
+// 							msg += std::string(buf);
+// 	}
+// }
 
 int main()
 {
@@ -25,7 +35,7 @@ int main()
 	setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
 
-	listen(listener, SOMAXCONN);
+	listen(listener, SOMAXCONN); 
 
 	const int MAX_EVENTS = 1024;
 
@@ -48,11 +58,18 @@ int main()
 
 		for(int i = 0; i < N; ++i)
 		{
+			if((events[i].events & EPOLLERR)||(events[i].events & EPOLLHUP))
+    		{
+    			// std::cout << "Ololol\n";
+    			std::cout << "connection terminated\n";
+    			close(events[i].data.fd);
+    		}
+    		else
 			// if((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP))
 			{
 				if(events[i].data.fd == listener)
 				{
-					std::cout << "ACCEPTED CONNECTION" << std::endl;
+					std::cout << "accepted connection" << std::endl;
 
 					int slave = accept(listener, 0, 0);
 
@@ -62,18 +79,38 @@ int main()
 					slave_event.events = EPOLLIN|EPOLLET;
 
 					epoll_ctl(epoll, EPOLL_CTL_ADD, slave, &slave_event);
+
+					char msg[] = "Welcome\n";
+
+					send(slave, msg, sizeof(msg), MSG_NOSIGNAL);
+
+					
 				}
 				else
 				{
-					std::cout <<"Message from socket " << events[i].data.fd << std::endl;
+
 
 					char buf[1024];
 
-					recv(events[i].data.fd, buf, sizeof(buf), MSG_NOSIGNAL);
+					int n = recv(events[i].data.fd, buf, sizeof(buf), MSG_NOSIGNAL);
+					if(n == 0)
+					{
+						close(events[i].data.fd);
+						std::cout << "connection terminated\n";
+						// shutdown(events[i].data.fd);
+					}
+					else
+					{	
+						std::string msg(buf);
+						// std::cout <<"Message from socket " << events[i].data.fd << std::endl;
+						// std::cout <<"\tmessage:" << buf << std::endl;
 
-					std::cout <<"\tmessage:" << buf << std::endl;
+						
 
-					send(events[i].data.fd, buf, sizeof(buf), MSG_NOSIGNAL);
+						send(events[i].data.fd, buf, msg.size(), MSG_NOSIGNAL);
+						std::cout <<"\tmessage:" << msg << std::endl;
+						// send(events[i].data.fd, buf, sizeof(buf), MSG_NOSIGNAL);
+					}
 
 
 				}
