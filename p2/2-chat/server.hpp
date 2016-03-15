@@ -11,10 +11,11 @@
 class Server: public BaseServer
 {
 	void broadcast(std::string msg);
-	void listener_event(MySocket &socket);
-	void error_event(MySocket &socket);
-	void disconnect_event(MySocket &socket);
-	void read_event(MySocket &socket);
+
+	virtual void listener_event(MySocket &socket) override;
+	virtual void error_event(MySocket &socket) override;
+	virtual void disconnect_event(MySocket &socket) override;
+	virtual void read_event(MySocket &socket) override;
 
 
 public:

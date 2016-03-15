@@ -97,30 +97,21 @@ MySocket& BaseServer::add_socket(int sock)
 void BaseServer::listener_event(MySocket &socket)
 {
 	std::cout << "ERROR\n";
-	// std::cout << "accepted connection" << std::endl;
-	// socket << "Welcome\n";
-	// socket.flush();
 }
 
 void BaseServer::error_event(MySocket &socket)
 {
 	std::cout << "ERROR\n";
-   	// socket.close();
 }
 
 void BaseServer::disconnect_event(MySocket &socket)
 {
-	// std::cout << "connection closed\n";
-	// socket.close();
 	std::cout << "ERROR\n";
 }
 
 void BaseServer::read_event(MySocket &socket)
 {
 	std::cout << "ERROR\n";
-	// std::string msg;
-	// socket >> msg;
-	// std::cout << "Message from " << socket.sock << ":\n\t" << msg << "\n";
 }
 
 

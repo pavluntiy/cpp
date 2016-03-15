@@ -58,13 +58,13 @@ class BaseServer
 
 	MySocket& add_socket(int sock);
 
-	void listener_event(MySocket &socket);
+	virtual void listener_event(MySocket &socket);
 
-	void error_event(MySocket &socket);
+	virtual void error_event(MySocket &socket);
 
-	void disconnect_event(MySocket &socket);
+	virtual void disconnect_event(MySocket &socket);
 
-	void read_event(MySocket &socket);
+	virtual void read_event(MySocket &socket);
 
 protected:
 		std::map<int, MySocket> sockets;
