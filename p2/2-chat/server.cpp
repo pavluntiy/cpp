@@ -1,5 +1,5 @@
 
-#include "server.h"
+#include "server.hpp"
 
 void Server::broadcast(std::string msg)
 {
