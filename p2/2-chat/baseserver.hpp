@@ -36,6 +36,8 @@ struct MySocket
 
 	void read();
 
+	int get_sock();
+
 };
 
 MySocket& operator << (MySocket& s, std::string str);

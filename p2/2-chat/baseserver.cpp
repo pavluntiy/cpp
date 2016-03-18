@@ -36,8 +36,12 @@ void MySocket::read()
 		throw SocketException();
 	}
 	buf[n] = '\0';
-	std::cout << buf;
 	this->in_buf += std::string(buf);
+}
+
+int MySocket::get_sock()
+{
+	return this->sock;
 }
 
 MySocket& operator << (MySocket& s, std::string str)
