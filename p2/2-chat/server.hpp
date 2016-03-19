@@ -21,7 +21,6 @@ class Server: public BaseServer
 	virtual void read_event(MySocket &socket) override;
 
 	std::string process_msg(std::string, MySocket&);
-	std::string get_next_message(MySocket &socket);
 
 
 public:
