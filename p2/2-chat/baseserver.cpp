@@ -14,10 +14,7 @@ void MySocket::close()
 
 void MySocket::flush()
 {
-	for (int i = 0; i < out_buf.size(); i += 1024)
-	{
-		send(sock, this->out_buf.c_str() + i, std::min((int)out_buf.size() - i, 1024), MSG_NOSIGNAL);
-	}
+	send(sock, this->out_buf.c_str(), out_buf.size(), MSG_NOSIGNAL);
 	this->out_buf = "";
 }
 
