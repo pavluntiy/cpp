@@ -14,35 +14,7 @@
 #include <map>
 #include <exception>
 
-class SocketException: public std::exception
-{
-
-};
-
-struct MySocket
-{
-	int sock;
-	std::string  in_buf;
-	std::string out_buf;
-
-	MySocket(int sock);
-
-
-	void close();
-
-	void flush();
-
-	void reset();
-
-	void read();
-
-	int get_sock();
-
-};
-
-MySocket& operator << (MySocket& s, std::string str);
-
-MySocket& operator >> (MySocket& s, std::string &str);
+#include "my_socket.hpp"
 
 class BaseServer
 {
