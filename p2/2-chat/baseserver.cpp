@@ -38,8 +38,10 @@ void MySocket::read()
 		this->close();
 		throw SocketException();
 	}
+
 	buf[n] = '\0';
 	this->in_buf += std::string(buf);
+	// std::cout << this->in_buf << endl;
 }
 
 int MySocket::get_sock()
