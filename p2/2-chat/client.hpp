@@ -17,10 +17,22 @@
 #include <system_error>
 #include <poll.h>
 
+#include <exception>
+
+#include "my_socket.hpp"
+
+
+class ClientException: public std::exception
+{
+    std::string str;
+public:
+    ClientException(std::string);
+    const char* what() const noexcept;
+};
 
 class Client
 {
-    int socket;
+    MySocket socket;
     std::string ip;
     int port;
 
@@ -28,6 +40,11 @@ class Client
 
     void connect();
     void init_poll();
+
+    virtual void socket_read_event();
+    virtual void stdin_event();
+    virtual void error_event();
+    virtual void disconnect_event();
 public:
     Client (std::string, int);
     void run();

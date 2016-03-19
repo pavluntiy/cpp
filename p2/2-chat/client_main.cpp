@@ -1,8 +1,15 @@
 #include "client.hpp"
-#include <string>
+#include <iostream>
 
 int main(int argc, char **argv)
 {   
-    Client client("127.0.0.1", 3100);
-    client.run();
+    try
+    {
+        Client client("127.0.0.1", 3100);
+        client.run();
+    }
+    catch (ClientException e)
+    {
+        std::cout << e.what() << std::endl;
+    }
 }

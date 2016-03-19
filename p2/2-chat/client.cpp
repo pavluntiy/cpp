@@ -1,8 +1,22 @@
 
 #include <iostream>
+#include <poll.h>
 
 #include "client.hpp"
-#include <poll.h>
+#include "my_socket.hpp"
+
+
+
+ClientException::ClientException(std::string str):str(str)
+{
+
+}
+
+const char* ClientException::what() const noexcept 
+{
+    return str.c_str();
+}
+
 
 Client::Client(std::string ip = "", int port = 0):ip(ip), port(port)
 {   
@@ -17,25 +31,28 @@ Client::Client(std::string ip = "", int port = 0):ip(ip), port(port)
 
 void Client::connect()
 {
-    this->socket = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    int socket_fd = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
     sockaddr_in SockAddr;
     SockAddr.sin_family = AF_INET;
     SockAddr.sin_port = htons(this->port);
     SockAddr.sin_addr.s_addr = inet_addr(this->ip.c_str());
     int optval = 1;
-    setsockopt(this->socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-    int status = ::connect(this->socket, (sockaddr*) &SockAddr, sizeof(SockAddr));
+    setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+    int status = ::connect(socket_fd, (sockaddr*) &SockAddr, sizeof(SockAddr));
     if(status == -1){
-        throw std::system_error(errno, std::system_category());
+        throw ClientException(std::system_error(errno, std::system_category()).what());
     }
-    fcntl(this->socket, F_SETFL, O_NONBLOCK);
+    fcntl(socket_fd, F_SETFL, O_NONBLOCK);
+
+    this->socket = MySocket(socket_fd);
+
 }
 
 
 void Client::init_poll()
 {
-    fds[0].fd = this->socket;
+    fds[0].fd = this->socket.sock;
     fds[0].events = POLLIN;
 
     fds[1].fd = 0;
@@ -53,29 +70,68 @@ void Client::run()
     {
         int N = poll(this->fds, sizeof(fds)/sizeof(struct pollfd), -1);
 
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 2; i++) {
             if (fds[i].revents & POLLHUP) {
                 std::cout << "ERROR" << std::endl;
                 break;
             }
-            if (fds[i].revents & POLLWRBAND) {
-    
-            }
+
             if (fds[i].revents & POLLIN) {
-                char buf[1024];
-                int n = recv(fds[i].fd, buf, sizeof(buf), MSG_NOSIGNAL);
-                if(n == 0)
-                {
-                    break;
-                    shutdown(fds[i].fd, SHUT_RDWR);
-                    close(fds[i].fd);
+                if(fds[i].fd == this->socket.sock){
+                    try
+                    {
+                        socket_read_event();
+                    }
+                    catch(SocketException)
+                    {
+                        disconnect_event();
+                    }
                 }
-                std::cout << std::string(buf) << std::endl;
+                else
+                {   
+                    stdin_event();
+                }
             }
+
+
             
         }
 
     }
 
     
+}
+
+void Client::socket_read_event()
+{
+
+    std::string msg;
+    socket >> msg;
+    std::cout << msg << std::endl;
+}
+
+void Client::stdin_event()
+{   
+    std::string msg;
+    if(std::getline(std::cin, msg)){
+        socket << msg;
+        socket.flush();
+    }
+    else
+    {
+        socket.close();
+        throw ClientException("EOF");
+    }
+}
+
+void Client::error_event()
+{
+    socket.close();
+    throw ClientException("Some error occured");
+}
+
+void Client::disconnect_event()
+{
+    socket.close();
+    throw ClientException("Lost connection with host");
 }
