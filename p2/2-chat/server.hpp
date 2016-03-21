@@ -11,7 +11,7 @@
 class Server: public BaseServer
 {	
 
-	std::map<int, std::string> buffers;
+
 
 	void broadcast(std::string msg);
 
@@ -20,9 +20,8 @@ class Server: public BaseServer
 	virtual void disconnect_event(MySocket &socket) override;
 	virtual void read_event(MySocket &socket) override;
 
-	std::string process_msg(std::string, MySocket&);
+	void process_msg(std::string, MySocket&);
     std::string get_next_message(MySocket&);
-
 
 public:
 	Server (int port);

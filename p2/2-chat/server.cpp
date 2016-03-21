@@ -32,10 +32,12 @@ void Server::disconnect_event(MySocket &socket)
 void Server::read_event(MySocket &socket)
 {
 	std::string msg;
+	
 	socket >> msg;
+	// std::cout << "Read ok" << std::endl;
 
 	process_msg(msg, socket); 
-	std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+	// std::cout << "Concat OK" << std::endl;
 	while((msg = get_next_message(socket)) != ""){
 		std::cout << "Message from " << socket.sock << ":\n\t" << msg << "\n";
 		broadcast(msg);
@@ -43,12 +45,15 @@ void Server::read_event(MySocket &socket)
 	
 }
 
-std::string Server::process_msg(std::string msg, MySocket &socket)
-{	
-	std::string &buf = buffers[socket.get_sock()];
-	std::cout << buf << std::endl;
-	buf += msg;	
+void Server::process_msg(std::string msg, MySocket &socket)
+{		
+	auto &buf = buffers[socket.get_sock()];
+	buf += msg; 
+	// std::cout << &buffers[socket.get_sock()] << std::endl;
+	// auto result = buffers[socket.get_sock()] + msg;
+	// buffers[socket.get_sock()] = "";
 
+	// std::cout << "asdfasdfasdffffffffffffffffffffffffffffff" << std::endl;
 	// auto position = buf.find('\n');
 
 	// if(position == std::string::npos)
@@ -65,8 +70,9 @@ std::string Server::process_msg(std::string msg, MySocket &socket)
 
 std::string Server::get_next_message(MySocket &socket)
 {	
-
-	std::string buf = buffers[socket.get_sock()];
+	// std::cout << "get_next_message" << std::endl;
+	// std::cout << &buffers[socket.get_sock()] << std::endl;
+	std::string &buf = buffers.at(socket.get_sock());
 	// std::cout << buf.c_str() << std::endl;
 
 	auto position = buf.find('\n');
@@ -75,21 +81,25 @@ std::string Server::get_next_message(MySocket &socket)
 	// std::cout << buf << std::endl;
 
 	while(position != std::string::npos)
-	{	
-		std::string result = buf.substr(0, position + 1);
+	{		
 
-		// if(position + 1  < buf.size()){
-		// 	buf = buf.substr(position + 1);
-		// }
-		// else
+		std::string result = buf.substr(0, position + 1);
+		// std::string result = "OLOOLOLOL";
+
+		if(position + 1  < buf.size()){
+			buf = buf.substr(position + 1);
+		}
+		else
 		{
-			buffers[socket.get_sock()] = std::string("");
+			buffers.at(socket.get_sock()) = "";
+
+			// std::cout << buffers.at(socket.get_sock()) << std::endl;
 		}
 
 		return result;
 		
 	}
-
+	// std::cout << "| "<< &buffers[socket.get_sock()] << std::endl;
 	return "";
 }
 
@@ -97,7 +107,14 @@ std::string Server::get_next_message(MySocket &socket)
 
 Server::Server (int port = 0): BaseServer(port)
 { 
+
 }
+
+// MySocket& Server::add_socket(int sock)
+// {
+// 	BaseServer::add_socket(sock);
+// 	buffers[sock] = "";
+// }
 
 
 

@@ -36,6 +36,8 @@ MySocket& BaseServer::add_socket(int sock)
 	epoll_ctl(this->epoll, EPOLL_CTL_ADD, sock, &slave_event);
 	this->sockets[sock] = MySocket(sock); 
 
+	buffers[sock] = "";
+
 	return this->sockets[sock];
 }
 

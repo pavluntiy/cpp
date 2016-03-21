@@ -26,10 +26,14 @@ class BaseServer
 	epoll_event events[1024];
 
 
+
+
 	void init_listener();
 
 	void init_epoll();
 
+protected:	
+	std::map<int, std::string> buffers;
 	MySocket& add_socket(int sock);
 
 	virtual void listener_event(MySocket &socket);
