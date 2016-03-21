@@ -114,13 +114,13 @@ void Client::stdin_event()
 {   
     std::string msg;
     if(std::getline(std::cin, msg)){
-        socket << msg;
+        socket << msg + "\n";
         socket.flush();
     }
     else
     {
         socket.close();
-        throw ClientException("EOF");
+        throw ClientException("Eof entered. Exited.");
     }
 }
 

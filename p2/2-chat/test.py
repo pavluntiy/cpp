@@ -115,37 +115,38 @@ class Test2(TestBase):
     def test_read1(self):
         c = self.newClient()
         c.sendall("TEST-TEST\n")
+        time.sleep(0.05)
         c.close()
 
         self.assertTrue(waitFor(lambda: self.reader.countString("TEST-TEST") == 1),
                             "Failed to wait for a test string in logs.")
 
-    # def test_nosplit(self):
-    #     c = self.newClient()
-    #     c.sendall("TEST-")
-    #     time.sleep(0.05)
-    #     self.assertTrue(self.reader.countString("TEST-") == 0,
-    #                         "Partial message was sent.")
+    def test_nosplit(self):
+        c = self.newClient()
+        c.sendall("TEST-")
+        time.sleep(0.05)
+        self.assertTrue(self.reader.countString("TEST-") == 0,
+                            "Partial message was sent.")
 
-    #     c.sendall("TEST\n")
-    #     c.close()
-    #     self.assertTrue(waitFor(lambda: self.reader.countString("TEST-TEST") == 1),
-    #                         "Failed to wait for a test string in logs.")
+        c.sendall("TEST\n")
+        c.close()
+        self.assertTrue(waitFor(lambda: self.reader.countString("TEST-TEST") == 1),
+                            "Failed to wait for a test string in logs.")
 
-    # def test_readMulti(self):
-    #     c = self.newClient()
-    #     c.sendall("TEST-TEST\n")
+    def test_readMulti(self):
+        c = self.newClient()
+        c.sendall("TEST-TEST\n")
 
-    #     c2 = self.newClient()
-    #     c2.sendall("TEST-TEST\n")
+        c2 = self.newClient()
+        c2.sendall("TEST-TEST\n")
 
-    #     c.sendall("TEST-TEST\n")
+        c.sendall("TEST-TEST\n")
 
-    #     self.assertTrue(waitFor(lambda: self.reader.countString("TEST-TEST") == 3),
-    #                         "Failed to wait for a test string in logs.")
+        self.assertTrue(waitFor(lambda: self.reader.countString("TEST-TEST") == 3),
+                            "Failed to wait for a test string in logs.")
 
-    #     c.close()
-    #     c2.close()
+        c.close()
+        c2.close()
 
 class Test3(TestBase):
     def test_disconnect(self):
@@ -153,12 +154,12 @@ class Test3(TestBase):
         time.sleep(0.05)
 
         self.assertTrue(self.reader.countString("connection terminated") == 0,
-            "Invalid count of 'connection terminated' strings in logs.")
+            "Invalid count of 'connection terminated' strings in logs. 0")
 
         c.close()
             
         self.assertTrue(waitFor(lambda: self.reader.countString("connection terminated") == 1),
-            "Invalid count of 'connection terminated' strings in logs.")
+            "Invalid count of 'connection terminated' strings in logs. 1")
 
     def test_disconnect1(self):
         c = self.newClient()
@@ -168,16 +169,16 @@ class Test3(TestBase):
 
         time.sleep(0.05)
         self.assertTrue(self.reader.countString("connection terminated") == 0,
-            "Invalid count of 'connection terminated' strings in logs.")
+            "Invalid count of 'connection terminated' strings in logs. 0")
 
         c.close()
-            
+        time.sleep(0.05)
         self.assertTrue(waitFor(lambda: self.reader.countString("connection terminated") == 1),
-            "Invalid count of 'connection terminated' strings in logs.")
+            "Invalid count of 'connection terminated' strings in logs. 1")
         c1.close()
         c2.close()
         self.assertTrue(waitFor(lambda: self.reader.countString("connection terminated") == 3),
-            "Invalid count of 'connection terminated' strings in logs.")
+            "Invalid count of 'connection terminated' strings in logs. 3 ")
 
 class Test4(TestBase):
     def test_greeting(self):

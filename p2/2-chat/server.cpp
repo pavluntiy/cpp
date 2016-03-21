@@ -26,6 +26,7 @@ void Server::error_event(MySocket &socket)
 void Server::disconnect_event(MySocket &socket)
 {
 	std::cout << "connection terminated" << std::endl;
+	std::cout.flush();
 	socket.close();
 }
 
@@ -35,11 +36,12 @@ void Server::read_event(MySocket &socket)
 	
 	socket >> msg;
 	// std::cout << "Read ok" << std::endl;
-	std::cout << msg << std::endl;
+	// std::cout << msg << std::endl;
 	process_msg(msg, socket); 
 	// std::cout << "Concat OK" << std::endl;
 	while((msg = get_next_message(socket)) != ""){
-		std::cout << "Message from " << socket.sock << ":\n\t" << msg << "\n";
+		// throw 10;
+		std::cout << "Message from " << socket.sock << ":\n\t" << msg << std::endl;
 		broadcast(msg);
 	}
 	
