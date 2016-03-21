@@ -120,32 +120,32 @@ class Test2(TestBase):
         self.assertTrue(waitFor(lambda: self.reader.countString("TEST-TEST") == 1),
                             "Failed to wait for a test string in logs.")
 
-    def test_nosplit(self):
-        c = self.newClient()
-        c.sendall("TEST-")
-        time.sleep(0.05)
-        self.assertTrue(self.reader.countString("TEST-") == 0,
-                            "Partial message was sent.")
+    # def test_nosplit(self):
+    #     c = self.newClient()
+    #     c.sendall("TEST-")
+    #     time.sleep(0.05)
+    #     self.assertTrue(self.reader.countString("TEST-") == 0,
+    #                         "Partial message was sent.")
 
-        c.sendall("TEST\n")
-        c.close()
-        self.assertTrue(waitFor(lambda: self.reader.countString("TEST-TEST") == 1),
-                            "Failed to wait for a test string in logs.")
+    #     c.sendall("TEST\n")
+    #     c.close()
+    #     self.assertTrue(waitFor(lambda: self.reader.countString("TEST-TEST") == 1),
+    #                         "Failed to wait for a test string in logs.")
 
-    def test_readMulti(self):
-        c = self.newClient()
-        c.sendall("TEST-TEST\n")
+    # def test_readMulti(self):
+    #     c = self.newClient()
+    #     c.sendall("TEST-TEST\n")
 
-        c2 = self.newClient()
-        c2.sendall("TEST-TEST\n")
+    #     c2 = self.newClient()
+    #     c2.sendall("TEST-TEST\n")
 
-        c.sendall("TEST-TEST\n")
+    #     c.sendall("TEST-TEST\n")
 
-        self.assertTrue(waitFor(lambda: self.reader.countString("TEST-TEST") == 3),
-                            "Failed to wait for a test string in logs.")
+    #     self.assertTrue(waitFor(lambda: self.reader.countString("TEST-TEST") == 3),
+    #                         "Failed to wait for a test string in logs.")
 
-        c.close()
-        c2.close()
+    #     c.close()
+    #     c2.close()
 
 class Test3(TestBase):
     def test_disconnect(self):

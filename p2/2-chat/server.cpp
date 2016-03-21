@@ -35,7 +35,7 @@ void Server::read_event(MySocket &socket)
 	
 	socket >> msg;
 	// std::cout << "Read ok" << std::endl;
-
+	std::cout << msg << std::endl;
 	process_msg(msg, socket); 
 	// std::cout << "Concat OK" << std::endl;
 	while((msg = get_next_message(socket)) != ""){
