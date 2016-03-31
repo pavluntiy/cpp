@@ -41,6 +41,7 @@ void Proxy::accept_handler(const boost::system::error_code &error)
         tmp_slave = std::make_shared<socket_t>(*io_service);
         //acceptor->accept(*tmp_slave);
     }
+    std::cout << connections.size() << std::endl;
 
     acceptor->async_accept(*tmp_slave, std::bind(&Proxy::accept_handler, this, std::placeholders::_1)); 
 }
