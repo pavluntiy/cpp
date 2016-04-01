@@ -41,6 +41,11 @@ void Proxy::accept_handler(const boost::system::error_code &error)
         tmp_slave = std::make_shared<socket_t>(*io_service);
         //acceptor->accept(*tmp_slave);
     }
+    for(auto &it: connections)
+    {
+
+        std::cout <<">>>>>> " << it.get_socket() << std::endl;
+    }
     std::cout << connections.size() << std::endl;
 
     acceptor->async_accept(*tmp_slave, std::bind(&Proxy::accept_handler, this, std::placeholders::_1)); 
@@ -51,3 +56,35 @@ void Proxy::run()
 {
     io_service->run();  
 }
+
+Connection::Connection (std::shared_ptr<socket_t> socket):socket(socket)
+{
+
+    this->socket = socket;
+    std::cout << this->socket << std::endl;
+        this->socket->async_read_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::client_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
+}
+
+std::shared_ptr<Connection::socket_t> Connection::get_socket()
+{
+    return socket;
+}
+
+void Connection::client_read_handler(const boost::system::error_code& error, std::size_t bytes_transferred)
+{
+    std::cout << this->socket << std::endl;
+    std::cout << "Read handler " << std::endl;
+    if(error)
+    {
+        std::cout << "Error: " << error << "\n";
+    }
+    else {
+        std::cout << socket << std::endl;
+        socket->async_write_some( boost::asio::buffer("request_ok\n", 10), [](boost::system::error_code ec, int e){});
+        //socket->async_read_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::client_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
+        //std::cout << bytes_transferred << " LOLLO" << std::endl; 
+    }
+}
+
+
+
