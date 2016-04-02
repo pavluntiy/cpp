@@ -20,6 +20,7 @@ public:
 private:
 
     std::shared_ptr<socket_t> socket;
+//      socket_t socket;
 
 public:
     Connection (std::shared_ptr<socket_t> socket);
@@ -47,7 +48,7 @@ private:
     std::shared_ptr<io_service_t> io_service;
     std::shared_ptr<socket_t> tmp_slave;
     //std::map<socket_t, boost::asio::mutable_buffer> buffers;
-    std::vector<Connection> connections;
+    std::vector<std::shared_ptr<Connection>> connections;
     
 protected:
     void accept_handler(const boost::system::error_code &);
