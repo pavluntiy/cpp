@@ -15,18 +15,25 @@ class  Connection
 public:
     using socket_t = boost::asio::ip::tcp::socket;
     using buffer_t = boost::asio::mutable_buffers_1;
+    using endpoint_t = boost::asio::ip::tcp::endpoint;
     char buff_in[1024];
     char buff_out[1024];
 private:
 
-    std::shared_ptr<socket_t> socket;
+    std::shared_ptr<socket_t> read_socket;
+    std::shared_ptr<socket_t> write_socket;
 //      socket_t socket;
 
 public:
-    Connection (std::shared_ptr<socket_t> socket);
-    std::shared_ptr<socket_t> get_socket();
+    Connection (std::shared_ptr<socket_t> read_socket, std::shared_ptr<socket_t> write_socket);
+    std::shared_ptr<socket_t> get_read_socket();
+    std::shared_ptr<socket_t> get_write_socket();
 
     void client_read_handler(const boost::system::error_code& error, std::size_t bytes_transferred);
+    void server_read_handler(const boost::system::error_code& error, std::size_t bytes_transferred);
+
+    void client_write_handler(const boost::system::error_code& error, std::size_t bytes_transferred);
+    void server_write_handler(const boost::system::error_code& error, std::size_t bytes_transferred);
 
 };
 

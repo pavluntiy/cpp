@@ -36,7 +36,9 @@ void Proxy::accept_handler(const boost::system::error_code &error)
        // auto buff = std::make_shared<boost::asio::mutable_buffer>(buffer_mem, sizeof(buffer_mem));
         //slaves.push_back(tmp_slave);
         //boost::asio::async_read(*tmp_slave, *buff, std::bind(&Proxy::client_read_handler, tmp_slave, std::placeholders::_1, std::placeholders::_2)); 
-        auto connection_ptr = std::make_shared<Connection>(tmp_slave);
+        auto endpoint_connection = std::make_shared<socket_t>(*io_service);
+        endpoint_connection->connect(endpoints[0]);
+        auto connection_ptr = std::make_shared<Connection>(tmp_slave, endpoint_connection);
         connections.push_back(connection_ptr);
         tmp_slave = std::make_shared<socket_t>(*io_service);
         //acceptor->accept(*tmp_slave);
@@ -58,37 +60,75 @@ void Proxy::run()
 }
 
 //Connection::Connection (socket_t socket):socket(socket)
-Connection::Connection (std::shared_ptr<socket_t> socket):socket(socket)
+Connection::Connection (std::shared_ptr<socket_t> read_socket, std::shared_ptr<socket_t> write_socket):
+    read_socket(read_socket),
+    write_socket(write_socket)
 {
 
  //   this->socket = socket;
    // std::cout << this->socket << std::endl;
-        this->socket->async_read_some(
+        // this->output_socket()
+        this->read_socket->async_read_some(
                     boost::asio::buffer(buff_in, sizeof(buff_in)), 
-                    std::bind(&Connection::client_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
+                    std::bind(&Connection::client_read_handler, this,  std::placeholders::_1, std::placeholders::_2));
+
+        this->write_socket->async_read_some(
+                    boost::asio::buffer(buff_in, sizeof(buff_in)), 
+                    std::bind(&Connection::server_read_handler, this,  std::placeholders::_1, std::placeholders::_2));
    // std::cout << "In constr " << this->socket << std::endl;
 }
 
-std::shared_ptr<Connection::socket_t> Connection::get_socket()
+std::shared_ptr<Connection::socket_t> Connection::get_read_socket()
 {
-    return socket;
+    return read_socket;
 }
+
+std::shared_ptr<Connection::socket_t> Connection::get_write_socket()
+{
+    return write_socket;
+}
+
+void Connection::server_read_handler(const boost::system::error_code& error, std::size_t bytes_transferred)
+{
+    if(error)
+    {
+        std::cout << "Read error, server: " << error << "\n";
+    }
+    else {
+        read_socket->async_write_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::server_write_handler, this,  std::placeholders::_1, std::placeholders::_2));
+        write_socket->async_read_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::server_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
+    }
+}
+
 
 void Connection::client_read_handler(const boost::system::error_code& error, std::size_t bytes_transferred)
 {
-    // std::cout << "In handler:" << this->socket << std::endl;
-    // std::cout << "Read handler " << this << std::endl;
     if(error)
     {
-        std::cout << "Error: " << error << "\n";
+        std::cout << "Read error, client: " << error << "\n";
     }
     else {
-        std::cout << socket << std::endl;
-        // socket->async_write_some( boost::asio::buffer("request_ok\n", 10), [](boost::system::error_code ec, int e){});
-        socket->async_read_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::client_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
-        //std::cout << bytes_transferred << " LOLLO" << std::endl; 
+        write_socket->async_write_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::client_write_handler, this,  std::placeholders::_1, std::placeholders::_2));
+        read_socket->async_read_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::client_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
     }
 }
 
+
+void Connection::server_write_handler(const boost::system::error_code& error, std::size_t bytes_transferred)
+{
+    if(error)
+    {
+        std::cout << "Error writing to server: " << error << "\n";
+    }
+}
+
+
+void Connection::client_write_handler(const boost::system::error_code& error, std::size_t bytes_transferred)
+{
+    if(error)
+    {
+        std::cout << "Error writing to client: " << error << "\n";
+    }
+}
 
 
