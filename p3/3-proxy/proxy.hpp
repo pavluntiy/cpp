@@ -16,13 +16,19 @@ public:
     using socket_t = boost::asio::ip::tcp::socket;
     using buffer_t = boost::asio::mutable_buffers_1;
     using endpoint_t = boost::asio::ip::tcp::endpoint;
+
+    using shutdown_types = boost::asio::ip::tcp::socket;
     char buff_in[1024];
     char buff_out[1024];
+
+    int cur_val = 0;
 private:
 
     std::shared_ptr<socket_t> read_socket;
     std::shared_ptr<socket_t> write_socket;
 //      socket_t socket;
+
+    void shutdown();
 
 public:
     Connection (std::shared_ptr<socket_t> read_socket, std::shared_ptr<socket_t> write_socket);

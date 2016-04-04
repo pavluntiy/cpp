@@ -64,6 +64,10 @@ Connection::Connection (std::shared_ptr<socket_t> read_socket, std::shared_ptr<s
     read_socket(read_socket),
     write_socket(write_socket)
 {
+    // if(!read_socket->is_open() || !write_socket->is_open())
+    // {
+
+    // }
 
  //   this->socket = socket;
    // std::cout << this->socket << std::endl;
@@ -88,13 +92,25 @@ std::shared_ptr<Connection::socket_t> Connection::get_write_socket()
     return write_socket;
 }
 
+void Connection::shutdown()
+{
+    boost::system::error_code ec;
+    write_socket->shutdown(shutdown_types::shutdown_both, ec);
+    read_socket->shutdown(shutdown_types::shutdown_both, ec);
+}
+
 void Connection::server_read_handler(const boost::system::error_code& error, std::size_t bytes_transferred)
 {
     if(error)
     {
+        // if(error == boost::asio::)
         std::cout << "Read error, server: " << error << "\n";
+        // read_socket->shutdown(shutdown_types::shutdown_both);
+        shutdown();
     }
     else {
+        // std::string outbuf(buff_in);
+        
         read_socket->async_write_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::server_write_handler, this,  std::placeholders::_1, std::placeholders::_2));
         write_socket->async_read_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::server_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
     }
@@ -104,8 +120,12 @@ void Connection::server_read_handler(const boost::system::error_code& error, std
 void Connection::client_read_handler(const boost::system::error_code& error, std::size_t bytes_transferred)
 {
     if(error)
-    {
-        std::cout << "Read error, client: " << error << "\n";
+    {   
+        shutdown();
+        // boost::system::error_code ec;
+        // write_socket->shutdown(shutdown_types::shutdown_both, ec);
+        // read_socket->shutdown(shutdown_types::shutdown_both, ec);
+        // std::cout << "Read error, client: " << error << "\n";
     }
     else {
         write_socket->async_write_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::client_write_handler, this,  std::placeholders::_1, std::placeholders::_2));
@@ -118,6 +138,9 @@ void Connection::server_write_handler(const boost::system::error_code& error, st
 {
     if(error)
     {
+        // read_socket->shutdown(shutdown_types::shutdown_both);
+        // write_socket->shutdown(shutdown_types::shutdown_both);
+        shutdown();
         std::cout << "Error writing to server: " << error << "\n";
     }
 }
@@ -127,6 +150,9 @@ void Connection::client_write_handler(const boost::system::error_code& error, st
 {
     if(error)
     {
+        // read_socket->shutdown(shutdown_types::shutdown_both);
+        // write_socket->shutdown(shutdown_types::shutdown_both);
+        shutdown();
         std::cout << "Error writing to client: " << error << "\n";
     }
 }
