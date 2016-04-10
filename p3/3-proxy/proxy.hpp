@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 #include <map>
+#include <boost/random/uniform_int_distribution.hpp>
 
 
 class  Connection
@@ -21,7 +22,6 @@ public:
     char buff_in[1024];
     char buff_out[1024];
 
-    int cur_val = 0;
 private:
 
     std::shared_ptr<socket_t> read_socket;
@@ -46,6 +46,7 @@ public:
 
 class Proxy
 {   
+        int cur_val = 0;
 public:
     using acceptor_t = boost::asio::ip::tcp::acceptor; 
     using socket_t = boost::asio::ip::tcp::socket;
@@ -62,6 +63,9 @@ private:
     std::shared_ptr<socket_t> tmp_slave;
     //std::map<socket_t, boost::asio::mutable_buffer> buffers;
     std::vector<std::shared_ptr<Connection>> connections;
+
+    boost::random::uniform_int_distribution<> dist;
+    std::mt19937 gen;
     
 protected:
     void accept_handler(const boost::system::error_code &);

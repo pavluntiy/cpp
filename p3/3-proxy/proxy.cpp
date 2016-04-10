@@ -12,15 +12,11 @@ Proxy::Proxy (int port, std::vector<endpoint_t> endpoints, std::shared_ptr<io_se
     this->endpoints = endpoints;
     tmp_slave = std::make_shared<socket_t>(*io_service);
     
-    //socket_t sock(*io_service);
     endpoint_t endpoint(boost::asio::ip::address_v4::from_string("127.0.0.1"), port);
     acceptor = std::make_shared<acceptor_t>(*io_service,  endpoint);
-    //acceptor->bind(endpoint);
-    //acceptor->open(endpoint.protocol());
     acceptor->set_option(acceptor_t::reuse_address(true));
     acceptor->async_accept(*tmp_slave, std::bind(&Proxy::accept_handler, this, std::placeholders::_1)); 
-   // acceptor->listen();
-   //boost::asio::placeholders::error
+    dist = boost::random::uniform_int_distribution<>(0, endpoints.size());
 }
 
 
@@ -36,11 +32,21 @@ void Proxy::accept_handler(const boost::system::error_code &error)
        // auto buff = std::make_shared<boost::asio::mutable_buffer>(buffer_mem, sizeof(buffer_mem));
         //slaves.push_back(tmp_slave);
         //boost::asio::async_read(*tmp_slave, *buff, std::bind(&Proxy::client_read_handler, tmp_slave, std::placeholders::_1, std::placeholders::_2)); 
-        auto endpoint_connection = std::make_shared<socket_t>(*io_service);
-        endpoint_connection->connect(endpoints[0]);
-        auto connection_ptr = std::make_shared<Connection>(tmp_slave, endpoint_connection);
-        connections.push_back(connection_ptr);
+
+        auto endpoint = endpoints[dist(gen)];
+        try
+        {
+            auto endpoint_connection = std::make_shared<socket_t>(*io_service);
+            endpoint_connection->connect(endpoint);
+            auto connection_ptr = std::make_shared<Connection>(tmp_slave, endpoint_connection);
+            connections.push_back(connection_ptr);
+        }
+        catch(...)
+        {
+            std::cout << "Failed to connect to " << endpoint << std::endl;
+        }
         tmp_slave = std::make_shared<socket_t>(*io_service);
+
         //acceptor->accept(*tmp_slave);
     }
     // for(auto &it: connections)
@@ -59,27 +65,17 @@ void Proxy::run()
     io_service->run();  
 }
 
-//Connection::Connection (socket_t socket):socket(socket)
 Connection::Connection (std::shared_ptr<socket_t> read_socket, std::shared_ptr<socket_t> write_socket):
     read_socket(read_socket),
     write_socket(write_socket)
 {
-    // if(!read_socket->is_open() || !write_socket->is_open())
-    // {
-
-    // }
-
- //   this->socket = socket;
-   // std::cout << this->socket << std::endl;
-        // this->output_socket()
         this->read_socket->async_read_some(
                     boost::asio::buffer(buff_in, sizeof(buff_in)), 
                     std::bind(&Connection::client_read_handler, this,  std::placeholders::_1, std::placeholders::_2));
 
         this->write_socket->async_read_some(
-                    boost::asio::buffer(buff_in, sizeof(buff_in)), 
+                    boost::asio::buffer(buff_out, sizeof(buff_out)), 
                     std::bind(&Connection::server_read_handler, this,  std::placeholders::_1, std::placeholders::_2));
-   // std::cout << "In constr " << this->socket << std::endl;
 }
 
 std::shared_ptr<Connection::socket_t> Connection::get_read_socket()
@@ -103,16 +99,14 @@ void Connection::server_read_handler(const boost::system::error_code& error, std
 {
     if(error)
     {
-        // if(error == boost::asio::)
         std::cout << "Read error, server: " << error << "\n";
-        // read_socket->shutdown(shutdown_types::shutdown_both);
         shutdown();
     }
     else {
         // std::string outbuf(buff_in);
-        
-        read_socket->async_write_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::server_write_handler, this,  std::placeholders::_1, std::placeholders::_2));
-        write_socket->async_read_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::server_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
+        auto tmp_memory = std::string(buff_out);
+        read_socket->async_write_some(boost::asio::buffer(tmp_memory), std::bind(&Connection::server_write_handler, this,  std::placeholders::_1, std::placeholders::_2));
+        write_socket->async_read_some(boost::asio::buffer(buff_out, sizeof(buff_out)), std::bind(&Connection::server_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
     }
 }
 
@@ -128,7 +122,8 @@ void Connection::client_read_handler(const boost::system::error_code& error, std
         // std::cout << "Read error, client: " << error << "\n";
     }
     else {
-        write_socket->async_write_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::client_write_handler, this,  std::placeholders::_1, std::placeholders::_2));
+        auto tmp_memory = std::string(buff_in);
+        write_socket->async_write_some(boost::asio::buffer(tmp_memory), std::bind(&Connection::client_write_handler, this,  std::placeholders::_1, std::placeholders::_2));
         read_socket->async_read_some(boost::asio::buffer(buff_in, sizeof(buff_in)), std::bind(&Connection::client_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
     }
 }
