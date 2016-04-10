@@ -19,8 +19,8 @@ public:
     using endpoint_t = boost::asio::ip::tcp::endpoint;
 
     using shutdown_types = boost::asio::ip::tcp::socket;
-    char buff_in[1024];
-    char buff_out[1024];
+    std::vector<char> buff_in;
+    std::vector<char> buff_out;
 
 private:
 
