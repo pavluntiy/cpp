@@ -22,21 +22,22 @@ public:
     std::vector<char> buff_server;
     std::vector<char> buff_client;
 
-    std::string server_accum;
-    std::string client_accum;
+    std::vector<char> server_accum;
+    std::vector<char> client_accum;
 
 private:
 
-    std::shared_ptr<socket_t> read_socket;
-    std::shared_ptr<socket_t> write_socket;
+    std::shared_ptr<socket_t> client_socket;
+    std::shared_ptr<socket_t> server_socket;
 //      socket_t socket;
-    const int buff_size = 32;
+    const int buff_size = 2;
+    const int accum_size = 8;
     void shutdown();
 
 public:
     Connection (std::shared_ptr<socket_t> read_socket, std::shared_ptr<socket_t> write_socket);
-    std::shared_ptr<socket_t> get_read_socket();
-    std::shared_ptr<socket_t> get_write_socket();
+    std::shared_ptr<socket_t> get_client_socket();
+    std::shared_ptr<socket_t> get_server_socket();
 
     void client_read_handler(const boost::system::error_code& error, std::size_t bytes_transferred);
     void server_read_handler(const boost::system::error_code& error, std::size_t bytes_transferred);
