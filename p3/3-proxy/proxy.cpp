@@ -16,7 +16,7 @@ Proxy::Proxy (int port, std::vector<endpoint_t> endpoints, std::shared_ptr<io_se
     acceptor = std::make_shared<acceptor_t>(*io_service,  endpoint);
     acceptor->set_option(acceptor_t::reuse_address(true));
     acceptor->async_accept(*tmp_slave, std::bind(&Proxy::accept_handler, this, std::placeholders::_1)); 
-    dist = boost::random::uniform_int_distribution<>(0, endpoints.size());
+    dist = boost::random::uniform_int_distribution<>(0, endpoints.size() - 1);
 }
 
 
@@ -56,14 +56,14 @@ Connection::Connection (std::shared_ptr<socket_t> read_socket, std::shared_ptr<s
     read_socket(read_socket),
     write_socket(write_socket)
 {
-        buff_in  = std::vector<char>(1024);
-        buff_out = std::vector<char>(1024);
+        buff_server  = std::vector<char>(1024);
+        buff_client = std::vector<char>(1024);
         this->read_socket->async_read_some(
-                    boost::asio::buffer(buff_in, buff_in.capacity()), 
+                    boost::asio::buffer(buff_server, buff_server.capacity()), 
                     std::bind(&Connection::client_read_handler, this,  std::placeholders::_1, std::placeholders::_2));
 
         this->write_socket->async_read_some(
-                    boost::asio::buffer(buff_out, buff_out.capacity()), 
+                    boost::asio::buffer(buff_client, buff_client.capacity()), 
                     std::bind(&Connection::server_read_handler, this,  std::placeholders::_1, std::placeholders::_2));
 }
 
@@ -93,9 +93,11 @@ void Connection::server_read_handler(const boost::system::error_code& error, std
     }
     else 
     {
-        auto tmp_memory = std::vector<char>(buff_out);
+        auto tmp_memory = std::vector<char>(buff_client);
+        buff_client.clear();
+        buff_client.resize(1024);
         read_socket->async_write_some(boost::asio::buffer(tmp_memory), std::bind(&Connection::server_write_handler, this,  std::placeholders::_1, std::placeholders::_2));
-        write_socket->async_read_some(boost::asio::buffer(buff_out, buff_out.capacity()), std::bind(&Connection::server_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
+        write_socket->async_read_some(boost::asio::buffer(buff_client, buff_client.capacity()), std::bind(&Connection::server_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
     }
 }
 
@@ -108,9 +110,11 @@ void Connection::client_read_handler(const boost::system::error_code& error, std
     }
     else 
     {
-        auto tmp_memory = std::vector<char>(buff_in);
+        auto tmp_memory = std::vector<char>(buff_server);
+        buff_server.clear();
+        buff_server.resize(1024);
         write_socket->async_write_some(boost::asio::buffer(tmp_memory), std::bind(&Connection::client_write_handler, this,  std::placeholders::_1, std::placeholders::_2));
-        read_socket->async_read_some(boost::asio::buffer(buff_in, buff_in.capacity()), std::bind(&Connection::client_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
+        read_socket->async_read_some(boost::asio::buffer(buff_server, buff_server.capacity()), std::bind(&Connection::client_read_handler, this,  std::placeholders::_1, std::placeholders::_2)); 
     }
 }
 
