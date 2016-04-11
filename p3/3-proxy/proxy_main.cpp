@@ -6,19 +6,25 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/lexical_cast.hpp>
+#include <fstream>
 
 
 int main (int argc, char **argv){
     
     std::vector<Proxy::endpoint_t> endpoints; 
 
-    int port = boost::lexical_cast<int>(argv[1]);
+    
 
+    std::ifstream in(argv[1]);
 
-    for(int i = 2; i < argc; ++i)
+    int port;
+    in >> port;
+
+    std::string s;
+    while(in >> s)
     {
         std::vector<std::string> tokens;
-        boost::split(tokens, argv[i], boost::is_any_of(":"));
+        boost::split(tokens, s, boost::is_any_of(":"));
         for(auto it: tokens)
         {
             std::cout << it << std::endl;

@@ -30,7 +30,7 @@ private:
     std::shared_ptr<socket_t> read_socket;
     std::shared_ptr<socket_t> write_socket;
 //      socket_t socket;
-    const int buff_size = 32;
+    const int buff_size = 1024;
     void shutdown();
 
 public:
