@@ -5,7 +5,7 @@ int main(int argc, char **argv)
 {   
     try
     {
-        Client client("127.0.0.1", 3100);
+        Client client("127.0.0.1", 3000);
         client.run();
     }
     catch (ClientException e)
