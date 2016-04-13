@@ -1,11 +1,13 @@
 #include <unistd.h>
 #include <fcntl.h>
-#include <stdio.h>
+#include <cstdio>
 
 #include <iostream>
 #include <vector>
 #include <string>
 #include <map>
+
+#include <exception>
 
 using namespace std;
 
@@ -16,7 +18,7 @@ using namespace std;
 
 using doc_id_t = unsigned long long;
 using word_id_t = unsigned long long;
-using word_cnt_t = unsigned long;
+using word_cnt_t = unsigned int;
 
 struct MyFile
 {
@@ -27,7 +29,7 @@ struct MyFile
 
     MyFile(string fname)
     {
-        FILE *f = fopen(fname.c_str(), "b");
+        f = fopen(fname.c_str(), "rb");
         buff = new char[BUFF_SIZE];
         setbuf(f, buff);
     }
@@ -39,8 +41,8 @@ struct MyFile
     }
 
     bool is_open()
-    {
-        return feof(f);
+    {   
+        return !feof(f);
     }
 
     void refill()
@@ -62,7 +64,20 @@ struct MyFile
     T read()
     {
         T res;
-        fgets((char *) (void*)&res, sizeof(res), f);
+        char *arr = (char *)(void *) &res;
+
+        // auto was_read = fread((char *) (void*)&res, sizeof(res), 1,  f);
+
+        for(int i = sizeof(T) - 1; i >= 0; --i)
+        {
+            // arr[i] = fgetc(f);
+            if(!fread(arr + i, 1, 1, f))
+            {
+                throw exception();
+            }
+        }
+
+
         bytes_read += sizeof(res);
         return res;
     }
@@ -91,11 +106,14 @@ struct MyFile
     template<typename T>
     void unget(T var)
     {
-        char* arr = (char*)(void*) var;
+        char* arr = (char*)(void*) &var;
 
-        for(int i = (int)sizeof(var) - 1; i > 0; --i)
-        {
+        // cout << var << "||||||" << endl;
+        for(int i = (int)sizeof(var) - 1; i >= 0; --i)
+        {   
+            // cout << arr[i] << endl;
             ungetc(arr[i], f);
+            // cout << "FSDDSFSDF\n" << endl;
         }
     }
 
@@ -112,40 +130,66 @@ void read_dicts(string fname)
 {
    
     MyFile fl(fname);
-    while(fl.is_open())
-    {   
 
-        map<word_id_t, vector<doc_id_t>> index;
-        while(!fl.empty())
+    try
+    {
+        while(fl.is_open())
         {   
+            cout << "FILE WAS RESET" << endl;
+            fl.refill();
 
-            auto doc_id = fl.read<doc_id_t>();
+            map<word_id_t, vector<doc_id_t>> index;
+            while(!fl.empty() && fl.is_open())
+            {   
+                cout << fl.bytes_read << endl;
+                auto doc_id = fl.read<doc_id_t>();
 
-            if(fl.empty())
-            {
-                fl.unget<doc_id_t>(doc_id);
-                break;
+                // cout << doc_id << endl;
+                if(fl.empty())
+                {   
+                    
+                    fl.unget<doc_id_t>(doc_id);
+                    break;
+                }
+
+                auto word_cnt = fl.read<word_cnt_t>();
+                // cout << word_cnt << endl;
+                if(!fl.can_read_n<word_id_t>(word_cnt))
+                {   
+                    fl.unget<word_cnt_t>(word_cnt);
+                    fl.unget<doc_id_t>(doc_id);
+                    break;
+                }
+
+                // cout << "LOLOLOL\n";
+                for(int i = 0; i < word_cnt; ++i)
+                {
+                    auto word = fl.read<word_id_t>();
+                    // cout << word << endl;
+                    index[word].push_back(doc_id);
+                }
+
+                cout << "Read index entry!" << endl;
+
+                // for(auto it: index)
+                // {   
+                //     cout << it.first << endl;
+                //     for(auto word:it.second)
+                //     {
+                //         cout << word << ' ';
+                //     }
+                //     cout << "\n==========" << endl;
+                // }
+
             }
-
-            auto word_cnt = fl.read<word_cnt_t>();
-
-            if(!fl.can_read_n<word_id_t>(word_cnt))
-            {
-                fl.unget<word_cnt_t>(word_cnt);
-                fl.unget<doc_id_t>(doc_id);
-                break;
-            }
-
-            for(int i = 0; i < word_cnt; ++i)
-            {
-                auto word = fl.read<word_id_t>();
-                index[word].push_back(doc_id);
-            }
-
-
+       
         }
-   
     }
+    catch(...)
+    {
+
+    }
+
     
 }
 
@@ -154,6 +198,7 @@ int main(void)
     string f_name;
     cin >> f_name;
 
+    read_dicts(f_name);
 
 
 
