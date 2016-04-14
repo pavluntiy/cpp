@@ -1,11 +1,15 @@
 #include <unistd.h>
 #include <fcntl.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include <cstdio>
 
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <string>
 #include <map>
+#include <sstream>
 
 #include <exception>
 
@@ -23,7 +27,7 @@ using word_cnt_t = unsigned int;
 struct MyFile
 {
     FILE *f;
-    const size_t BUFF_SIZE = 1024;
+    const size_t BUFF_SIZE = 1024 * 1024;
     size_t bytes_read = 0;
     char *buff;
 
@@ -130,6 +134,23 @@ struct MyFile
 };
 
 
+void dump_to_file(map<word_id_t, vector<doc_id_t>> &index, int idx)
+{   
+    stringstream ss;
+    ss << "./tosort/some" << idx;
+    ofstream out(ss.str());
+    for(auto it: index)
+    {   
+        out << it.first << endl;
+        for(auto word:it.second)
+        {
+            out << word << ' ';
+        }
+        out << "\n==========" << endl;
+    }
+    // cout << "DSSDFSDFSD";
+}
+
 
 void read_dicts(string fname)
 {
@@ -138,6 +159,7 @@ void read_dicts(string fname)
 
     cout << &fl;
     int total  = 0;
+    map<word_id_t, vector<doc_id_t>> index;
     try
     {
 
@@ -146,12 +168,11 @@ void read_dicts(string fname)
             cout << "FILE WAS RESET" << endl;
             fl.refill();
 
-            map<word_id_t, vector<doc_id_t>> index;
+            
             while(!fl.empty() && fl.is_open())
             {   
                 // cout << fl.bytes_read << endl;
                 auto doc_id = fl.read<doc_id_t>();
-                 total += 1;
                 // int i;
 
                 // cout << doc_id << endl;
@@ -176,13 +197,17 @@ void read_dicts(string fname)
                     // cout << index.size() << ">>>>>>\n";
                     if(!fl.can_read_n<word_id_t>(1))
                     {   
-                        cout << "DUMP TO FILE " << index.size() << endl; 
+
+
+                        // cout << "DUMP TO FILE " << index.size() << endl; 
+                        dump_to_file(index, total);
+                        total += 1;
                         fl.refill();
                         index = map<word_id_t, vector<doc_id_t>>();
                     }
                     auto word = fl.read<word_id_t>();
                     // cout << word << endl;
-                    index[0].push_back(doc_id);
+                    index[word].push_back(doc_id);
                    
                 }
 
@@ -199,11 +224,14 @@ void read_dicts(string fname)
                 // }
 
             }
+            
+
        
         }
     }
     catch(...)
     {
+        dump_to_file(index, total);
         cout << "Read " << total << endl;
     }
 
@@ -215,7 +243,9 @@ int main(void)
     string f_name;
     cin >> f_name;
 
+    mkdir("tosort", 0777);
     read_dicts(f_name);
+    // rmdir("tosort");
 
 
 
