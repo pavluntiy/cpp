@@ -82,8 +82,6 @@ struct MyFile
             {
                 throw exception();
             }
-            // cout << r;
-            // cout << endl;
         }
 
 
@@ -91,38 +89,13 @@ struct MyFile
         return res;
     }
 
-    // doc_id_t read_doc_id()
-    // {
-    //     doc_id_t doc_id;
-    //     fgets((char *) (void*)&doc_id, sizeof(long long), f);
-    //     return doc_id;
-    // }
-
-    // word_id_t read_word_id()
-    // {
-    //     word_id_t word_id;
-    //     fgets((char *) (void*)&word_id, sizeof(long long), f);
-    //     return word_id;
-    // }
-
-    // word_cnt_t read_word_cnt()
-    // {
-    //     word_cnt_t word_cnt;
-    //     fgets((char *) (void*)&word_id, sizeof(long long), f);
-    //     return word_cnt;
-    // }
-
     template<typename T>
     void unget(T var)
     {
         char* arr = (char*)(void*) &var;
-
-        // cout << var << "||||||" << endl;
         for(int i = 0; i < sizeof(var); ++i)
         {   
-            // cout << (void*)(arr + i) << ' ' << &var << endl;
             ungetc(arr[i], f);
-            // cout << "FSDDSFSDF\n" << endl;
         }
     }
 
@@ -133,22 +106,59 @@ struct MyFile
     }
 };
 
+struct MFile
+{
+    static int total;
+    static vector<string> names;
+    FILE *f;
+
+    MFile(string base = "./")
+    {   
+        stringstream ss;
+        ss << base << total;
+        total += 1;
+        names.push_back(ss.str());
+        f = fopen(ss.str().c_str(), "wb");
+    }
+
+    ~MFile()
+    {
+        fclose(f);
+    }
+
+    template<typename T>
+    void write(T var)
+    {
+        char* arr = (char*)(void*) &var;
+        for(int i = 0; i < sizeof(var); ++i)
+        {   
+            fwrite(arr + i, sizeof(char), 1, f);
+        }
+    }
+
+
+
+};
+
+int MFile::total = 0;
+vector<string> MFile::names;
+
 
 void dump_to_file(map<word_id_t, vector<doc_id_t>> &index, int idx)
 {   
-    stringstream ss;
-    ss << "./tosort/some" << idx;
-    ofstream out(ss.str());
+    
+    // ofstream out(ss.str());
+    MFile f("./tosort/some");
     for(auto it: index)
     {   
-        out << it.first << endl;
+        f.write(it.first);
+
         for(auto word:it.second)
         {
-            out << word << ' ';
+            f.write(word);
         }
-        out << "\n==========" << endl;
+        // out << "\n==========" << endl;
     }
-    // cout << "DSSDFSDFSD";
 }
 
 
@@ -211,21 +221,7 @@ void read_dicts(string fname)
                    
                 }
 
-                // cout << "Read index entry!" << endl;
-
-                // for(auto it: index)
-                // {   
-                //     cout << it.first << endl;
-                //     for(auto word:it.second)
-                //     {
-                //         cout << word << ' ';
-                //     }
-                //     cout << "\n==========" << endl;
-                // }
-
             }
-            
-
        
         }
     }
