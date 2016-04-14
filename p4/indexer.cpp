@@ -23,7 +23,7 @@ using word_cnt_t = unsigned int;
 struct MyFile
 {
     FILE *f;
-    const size_t BUFF_SIZE = 1024 * 1024;
+    const size_t BUFF_SIZE = 1024;
     size_t bytes_read = 0;
     char *buff;
 
@@ -31,7 +31,7 @@ struct MyFile
     {
         f = fopen(fname.c_str(), "rb");
         buff = new char[BUFF_SIZE];
-        setbuf(f, buff);
+        setvbuf(f, buff,  _IOFBF , BUFF_SIZE);
     }
 
     ~MyFile()
@@ -63,6 +63,7 @@ struct MyFile
     template<typename T>
     T read()
     {
+        // cout << this << endl;
         T res;
         char *arr = (char *)(void *) &res;
 
@@ -71,10 +72,14 @@ struct MyFile
         for(int i = sizeof(T) - 1; i >= 0; --i)
         {
             // arr[i] = fgetc(f);
-            if(!fread(arr + i, 1, 1, f))
+            // cout << (void*) (arr + i) << " " << &res << ' ';
+            int r;
+            if(!fread(arr + i, sizeof(char), 1, f))
             {
                 throw exception();
             }
+            // cout << r;
+            // cout << endl;
         }
 
 
@@ -109,9 +114,9 @@ struct MyFile
         char* arr = (char*)(void*) &var;
 
         // cout << var << "||||||" << endl;
-        for(int i = (int)sizeof(var) - 1; i >= 0; --i)
+        for(int i = 0; i < sizeof(var); ++i)
         {   
-            // cout << arr[i] << endl;
+            // cout << (void*)(arr + i) << ' ' << &var << endl;
             ungetc(arr[i], f);
             // cout << "FSDDSFSDF\n" << endl;
         }
@@ -131,8 +136,11 @@ void read_dicts(string fname)
    
     MyFile fl(fname);
 
+    cout << &fl;
+    int total  = 0;
     try
     {
+
         while(fl.is_open())
         {   
             cout << "FILE WAS RESET" << endl;
@@ -141,35 +149,44 @@ void read_dicts(string fname)
             map<word_id_t, vector<doc_id_t>> index;
             while(!fl.empty() && fl.is_open())
             {   
-                cout << fl.bytes_read << endl;
+                // cout << fl.bytes_read << endl;
                 auto doc_id = fl.read<doc_id_t>();
+                 total += 1;
+                // int i;
 
                 // cout << doc_id << endl;
-                if(fl.empty())
-                {   
+                // if(fl.empty())
+                // {   
                     
-                    fl.unget<doc_id_t>(doc_id);
-                    break;
-                }
+                //     fl.unget<doc_id_t>(doc_id);
+                //     break;
+                // }
 
                 auto word_cnt = fl.read<word_cnt_t>();
-                // cout << word_cnt << endl;
-                if(!fl.can_read_n<word_id_t>(word_cnt))
-                {   
-                    fl.unget<word_cnt_t>(word_cnt);
-                    fl.unget<doc_id_t>(doc_id);
-                    break;
-                }
+                // int j;
+                // cout << word_cnt << ' ' << doc_id << endl;
+                // if(!fl.can_read_n<word_id_t>(word_cnt))
+                // {   
+                //     cout << "DUMP TO FILE " << endl;  
+                // }
 
                 // cout << "LOLOLOL\n";
                 for(int i = 0; i < word_cnt; ++i)
-                {
+                {   
+                    // cout << index.size() << ">>>>>>\n";
+                    if(!fl.can_read_n<word_id_t>(1))
+                    {   
+                        cout << "DUMP TO FILE " << index.size() << endl; 
+                        fl.refill();
+                        index = map<word_id_t, vector<doc_id_t>>();
+                    }
                     auto word = fl.read<word_id_t>();
                     // cout << word << endl;
-                    index[word].push_back(doc_id);
+                    index[0].push_back(doc_id);
+                   
                 }
 
-                cout << "Read index entry!" << endl;
+                // cout << "Read index entry!" << endl;
 
                 // for(auto it: index)
                 // {   
@@ -187,7 +204,7 @@ void read_dicts(string fname)
     }
     catch(...)
     {
-
+        cout << "Read " << total << endl;
     }
 
     
