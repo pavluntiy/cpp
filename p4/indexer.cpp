@@ -12,6 +12,7 @@
 #include <sstream>
 
 #include <exception>
+#include <algorithm>
 
 using namespace std;
 
@@ -106,24 +107,59 @@ struct MyFile
     }
 };
 
-struct MFile
-{
-    static int total;
-    static vector<string> names;
-    FILE *f;
+// struct MFile
+// {
+//     static int total;
+//     static vector<string> names;
+//     FILE *f;
 
-    MFile(string base = "./")
+//     MFile(string base = "./")
+//     {   
+//         stringstream ss;
+//         ss << base << total;
+//         total += 1;
+//         names.push_back(ss.str());
+//         f = fopen(ss.str().c_str(), "wb");
+//     }
+
+//     ~MFile()
+//     {
+//         fclose(f); 
+//     }
+
+//     template<typename T>
+//     void write(T var)
+//     {
+//         char* arr = (char*)(void*) &var;
+//         for(int i = 0; i < sizeof(var); ++i)
+//         {   
+//             fwrite(arr + i, sizeof(char), 1, f);
+//         }
+//     }
+
+
+
+// };
+
+
+
+// int MFile::total = 0;
+// vector<string> MFile::names;
+
+struct MapFileWriter
+{
+    FILE* f;
+    vector<long long> dict_offsects;
+
+    MapFileWriter(string name)
     {   
-        stringstream ss;
-        ss << base << total;
-        total += 1;
-        names.push_back(ss.str());
-        f = fopen(ss.str().c_str(), "wb");
+        f = fopen(name.c_str(), "wb");    
+
     }
 
-    ~MFile()
+    ~MapFileWriter()
     {
-        fclose(f);
+        fclose(f); 
     }
 
     template<typename T>
@@ -136,36 +172,36 @@ struct MFile
         }
     }
 
+    void dump(map<word_id_t, vector<doc_id_t>> &index)
+    {      
+    
+        for(auto it: index)
+        {   
+            write(it.first);
+            // cout << it.first << endl;
+            sort(it.second.begin(), it.second.end());
+            write<unsigned long long>(it.second.size());
 
+            for(auto word:it.second)
+            {
+                write(word);
+            }
+
+        }
+        dict_offsects.push_back(lseek(fileno(f), 0, SEEK_CUR));
+    }
 
 };
 
-int MFile::total = 0;
-vector<string> MFile::names;
 
 
-void dump_to_file(map<word_id_t, vector<doc_id_t>> &index, int idx)
-{   
-    
-    // ofstream out(ss.str());
-    MFile f("./tosort/some");
-    for(auto it: index)
-    {   
-        f.write(it.first);
-
-        for(auto word:it.second)
-        {
-            f.write(word);
-        }
-        // out << "\n==========" << endl;
-    }
-}
 
 
 void read_dicts(string fname)
 {
    
     MyFile fl(fname);
+    MapFileWriter fw("tmpfile.bin");
 
     cout << &fl;
     int total  = 0;
@@ -210,7 +246,8 @@ void read_dicts(string fname)
 
 
                         // cout << "DUMP TO FILE " << index.size() << endl; 
-                        dump_to_file(index, total);
+                        // dump_to_file(index, total);
+                        fw.dump(index);
                         total += 1;
                         fl.refill();
                         index = map<word_id_t, vector<doc_id_t>>();
@@ -227,8 +264,13 @@ void read_dicts(string fname)
     }
     catch(...)
     {
-        dump_to_file(index, total);
+        fw.dump(index);
         cout << "Read " << total << endl;
+    }
+
+    for(auto it: fw.dict_offsects)
+    {
+        cout << it << endl;
     }
 
     
@@ -239,7 +281,7 @@ int main(void)
     string f_name;
     cin >> f_name;
 
-    mkdir("tosort", 0777);
+    // mkdir("tosort", 0777);
     read_dicts(f_name);
     // rmdir("tosort");
 
