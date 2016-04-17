@@ -38,7 +38,7 @@ template<typename T>
 void my_write(FILE *f, T var)
 {
     char* arr = (char*)(void*) &var;
-    for(int i = 0; i < sizeof(var); ++i)
+    for(int i = (int) sizeof(var) - 1; i >= 0; --i)
     {   
         fwrite(arr + i, sizeof(char), 1, f);
     }
@@ -51,7 +51,7 @@ T my_read(FILE *f)
     T res;
     char *arr = (char *)(void *) &res;
 
-    for(int i = sizeof(T) - 1; i >= 0; --i)
+    for(int i = 0; i < sizeof(T); ++i)
     {
         if(!fread(arr + i, sizeof(char), 1, f))
         {
@@ -59,6 +59,7 @@ T my_read(FILE *f)
         }
     }
 
+    // cout << res << endl;
     return res;
 }
 
@@ -67,7 +68,7 @@ T my_read(FILE *f)
 struct MyFile
 {
     FILE *f;
-    const size_t BUFF_SIZE = 1024;
+    const size_t BUFF_SIZE =  1024;
     size_t bytes_read = 0;
     char *buff;
     string fname;
@@ -216,21 +217,26 @@ struct MapFileWriter
 
     void dump(map<word_id_t, vector<doc_id_t>> &index)
     {      
-    
-        for(auto it: index)
+        
+        dict_offsets.push_back(lseek(fileno(f), 0, SEEK_CUR));
+        write<unsigned long long>(index.size());
+        // cout << index.size() << endl;
+        for(auto &it: index)
         {   
             write(it.first);
             // cout << it.first << endl;
             sort(it.second.begin(), it.second.end());
             write<unsigned long long>(it.second.size());
 
-            for(auto word:it.second)
+            for(auto &word:it.second)
             {
                 write(word);
             }
 
         }
-        dict_offsets.push_back(lseek(fileno(f), 0, SEEK_CUR));
+
+        fflush(f);
+        
     }
 
 };
@@ -356,6 +362,8 @@ class FileProxy
 
     unsigned long long doc_counter;
 
+    unsigned long long size;
+
 public:
     FileProxy(string fname, offset_t offset)
     {
@@ -366,6 +374,11 @@ public:
         f = fopen(fname.c_str(), "rb");
         lseek(fileno(f), offset, SEEK_SET);
         doc_counter = 0;
+
+        size = my_read<unsigned long long>(f);
+        // cout << offset  << ' ' <<  lseek(fileno(f), 0, SEEK_CUR) << endl;
+        // cout << "Sz: " <<  size << endl;
+
     }
 
     ~FileProxy()
@@ -375,20 +388,47 @@ public:
 
     word_id_t get_current_word()
     {
+        // cout << "getting current_word\n";
         if(word_valid && doc_counter > 0)
         {
             return current_word;
         }
 
+        size--;
         current_word = my_read<word_id_t>(f);
         doc_counter = my_read<unsigned long long>(f);
+        // cout << current_word << endl;
+        // cout << doc_counter << endl;
+
+        return current_word;
+    }
+
+    bool doc_list_empty()
+    {
+        return doc_counter == 0;
+    }
+
+    bool is_empty()
+    {
+        return size == 0;
+    }
+
+    doc_id_t get_current_doc()
+    {
+        if(doc_valid)
+        {
+            return  current_doc;
+        }
+
+        return get_next_doc();
     }
 
     doc_id_t get_next_doc()
     {
         if(doc_counter > 0)
         {
-            return  my_read<doc_id_t>(f);
+            doc_valid = true;
+            return  current_doc = my_read<doc_id_t>(f);
         }
 
         throw InvalidRead();
@@ -406,7 +446,8 @@ void write_index(IndexInfo &index_info)
     vector<FileProxy> proxies;
 
     for(auto& offset: index_info.offsets)
-    {
+    {   
+        // cout << "offset: " << offset << endl;
         proxies.push_back(FileProxy(index_info.tmp_fname, offset));
     }
 
@@ -419,6 +460,65 @@ void write_index(IndexInfo &index_info)
     }
     my_write<word_id_t>(output, 0);
     my_write<offset_t>(output, 0);
+
+
+    bool changed = false;
+
+    bool min_word_found = false;
+    word_id_t min_word = -1;
+    for(int i = 0; i < proxies.size(); ++i)
+    {
+
+        if(!proxies[i].is_empty())
+        {
+            // cout << "Not empty\n";
+            auto current_word = proxies[i].get_current_word();
+            // cout << current_word << endl;
+            if(!min_word_found || current_word < min_word)
+            {
+                min_word = current_word;
+            }
+            min_word_found = true;
+        }
+        // cout << "min_word: " << min_word << endl;
+        if(!min_word_found)
+        {
+            break;
+        }
+        else
+        {
+            changed = true;
+        }
+    }
+
+    int min_doc_proxy = 0;
+    doc_id_t min_doc = 0;
+    bool min_doc_proxy_found = false;
+    for(int i = 0; i < proxies.size(); ++i)
+    {
+        if(proxies[i].is_empty())
+        {
+            continue;
+        }
+
+        if(proxies[i].get_current_word() != min_word){
+            continue;
+        }
+
+        auto current_doc = proxies[i].get_current_doc();
+        if(!min_doc_proxy_found || current_doc < min_doc)
+        {
+            min_doc_proxy = i;
+            min_doc = current_doc;
+        }
+
+        changed = true;
+
+
+    }
+
+    cout << min_doc << endl;
+
 
 
 }
