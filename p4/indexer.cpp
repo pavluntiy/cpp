@@ -226,14 +226,19 @@ struct MapFileWriter
             write(it.first);
             // cout << it.first << endl;
             sort(it.second.begin(), it.second.end());
+            // cout << it.second.size() << endl;
             write<unsigned long long>(it.second.size());
 
             for(auto &word:it.second)
-            {
+            {   
+                // cout << word << ' ';
                 write(word);
             }
+            // cout << "\n===============" << endl;
 
         }
+
+        
 
         fflush(f);
         
@@ -273,7 +278,7 @@ IndexInfo read_dicts(string fname)
 
     set<word_id_t> word_ids;
 
-    cout << &fl;
+    // cout << &fl;
     int total  = 0;
     map<word_id_t, vector<doc_id_t>> index;
     try
@@ -281,7 +286,7 @@ IndexInfo read_dicts(string fname)
 
         while(fl.is_open())
         {   
-            cout << "FILE WAS RESET" << endl;
+            // cout << "FILE WAS RESET" << endl;
             fl.refill();
 
             
@@ -337,7 +342,7 @@ IndexInfo read_dicts(string fname)
     catch(InvalidRead e)
     {
         fw.dump(index);
-        cout << "Read " << total << endl;
+        // cout << "Read " << total << endl;
     }
 
     IndexInfo index_info;
@@ -376,6 +381,7 @@ public:
         doc_counter = 0;
 
         size = my_read<unsigned long long>(f);
+        get_next_doc();
         // cout << offset  << ' ' <<  lseek(fileno(f), 0, SEEK_CUR) << endl;
         // cout << "Sz: " <<  size << endl;
 
@@ -388,18 +394,23 @@ public:
 
     word_id_t get_current_word()
     {
-        // cout << "getting current_word\n";
-        if(word_valid && doc_counter > 0)
+        if(word_valid)
         {
             return current_word;
         }
 
+        throw InvalidRead();
+        // return get_next_word();
+        
+    }
+
+    word_id_t get_next_word()
+    {
         size--;
+        word_valid = true;
         current_word = my_read<word_id_t>(f);
         doc_counter = my_read<unsigned long long>(f);
-        // cout << current_word << endl;
-        // cout << doc_counter << endl;
-
+        // cout << "doc_counter " <<  doc_counter << endl;
         return current_word;
     }
 
@@ -420,18 +431,25 @@ public:
             return  current_doc;
         }
 
-        return get_next_doc();
+        throw InvalidRead();
     }
 
     doc_id_t get_next_doc()
     {
         if(doc_counter > 0)
         {
+            // cout << "getting_next_doc " << current_doc << ' ' << doc_counter << endl;
             doc_valid = true;
-            return  current_doc = my_read<doc_id_t>(f);
+            current_doc = my_read<doc_id_t>(f);
+            // cout << "get_next_doc " << current_doc << endl;
+            doc_counter--;
+            return  current_doc;
         }
-
-        throw InvalidRead();
+        else
+        {
+              get_next_word();
+              return get_next_doc();
+        }
     }
 
     // FileProxy(FileProxy &&other)
@@ -462,15 +480,19 @@ void write_index(IndexInfo &index_info)
     my_write<offset_t>(output, 0);
 
 
-    bool changed = false;
+    bool changed = true;
 
-    bool min_word_found = false;
-    word_id_t min_word = -1;
-    for(int i = 0; i < proxies.size(); ++i)
-    {
-
-        if(!proxies[i].is_empty())
+    while(changed){
+        changed = false;
+        bool min_word_found = false;
+        word_id_t min_word = -1;
+        for(int i = 0; i < proxies.size(); ++i)
         {
+            if(proxies[i].is_empty())
+            {
+                continue;
+            }
+
             // cout << "Not empty\n";
             auto current_word = proxies[i].get_current_word();
             // cout << current_word << endl;
@@ -478,46 +500,59 @@ void write_index(IndexInfo &index_info)
             {
                 min_word = current_word;
             }
-            min_word_found = true;
+            min_word_found = true; 
+            changed = true;
         }
-        // cout << "min_word: " << min_word << endl;
-        if(!min_word_found)
+
+        my_write(output, min_word);
+
+        if(!changed)
         {
             break;
         }
-        else
-        {
+        bool word_empty = false;
+        // cout << "TOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOo\n";
+
+        int total = 0;
+        while(!word_empty){
+            int min_doc_proxy = 0;
+            doc_id_t min_doc = 0;
+            bool min_doc_proxy_found = false;
+            word_empty = true;
+            for(int i = 0; i < proxies.size(); ++i)
+            {
+                if(proxies[i].is_empty())
+                {
+                    continue;
+                }
+
+                // cout << proxies[i].get_current_word() << endl;
+                if(proxies[i].get_current_word() != min_word){
+                    continue;
+                }
+
+                auto current_doc = proxies[i].get_current_doc();
+                if(!min_doc_proxy_found || current_doc < min_doc)
+                {
+                    min_doc_proxy = i;
+                    min_doc = current_doc;
+                    changed = true;
+                    word_empty = false;
+                }
+            }
+
+            // cout << min_doc << endl;
+            my_write(output, min_doc);
+            total += 1;
             changed = true;
+            proxies[min_doc_proxy].get_next_doc();
+            // cout << "asdfsdaf " << proxies[min_doc_proxy].get_next_doc() << " " <<   proxies[min_doc_proxy].get_current_word() << endl;
         }
+
+        cout << "total = " << total << endl;
     }
 
-    int min_doc_proxy = 0;
-    doc_id_t min_doc = 0;
-    bool min_doc_proxy_found = false;
-    for(int i = 0; i < proxies.size(); ++i)
-    {
-        if(proxies[i].is_empty())
-        {
-            continue;
-        }
-
-        if(proxies[i].get_current_word() != min_word){
-            continue;
-        }
-
-        auto current_doc = proxies[i].get_current_doc();
-        if(!min_doc_proxy_found || current_doc < min_doc)
-        {
-            min_doc_proxy = i;
-            min_doc = current_doc;
-        }
-
-        changed = true;
-
-
-    }
-
-    cout << min_doc << endl;
+    // cout << min_doc << endl;
 
 
 
