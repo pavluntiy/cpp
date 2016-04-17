@@ -13,6 +13,7 @@
 
 #include <exception>
 #include <algorithm>
+#include <set>
 
 using namespace std;
 
@@ -31,9 +32,11 @@ struct MyFile
     const size_t BUFF_SIZE = 1024 * 1024;
     size_t bytes_read = 0;
     char *buff;
+    string fname;
 
     MyFile(string fname)
-    {
+    {   
+        this->fname = fname;
         f = fopen(fname.c_str(), "rb");
         buff = new char[BUFF_SIZE];
         setvbuf(f, buff,  _IOFBF , BUFF_SIZE);
@@ -149,10 +152,11 @@ struct MyFile
 struct MapFileWriter
 {
     FILE* f;
-    vector<long long> dict_offsects;
-
+    vector<long long> dict_offsets;
+    string fname;
     MapFileWriter(string name)
     {   
+        fname = name;
         f = fopen(name.c_str(), "wb");    
 
     }
@@ -188,20 +192,42 @@ struct MapFileWriter
             }
 
         }
-        dict_offsects.push_back(lseek(fileno(f), 0, SEEK_CUR));
+        dict_offsets.push_back(lseek(fileno(f), 0, SEEK_CUR));
     }
 
+};
+
+
+struct IndexInfo
+{
+    vector<long long> offsets;
+    string tmp_fname;
+    set<word_id_t> word_ids;
+
+    IndexInfo()
+    {
+
+    }
+
+    IndexInfo (IndexInfo &&other)
+    {
+        offsets = move(other.offsets);
+        tmp_fname = move(other.tmp_fname);
+        word_ids = move(other.word_ids);
+    }
 };
 
 
 
 
 
-void read_dicts(string fname)
+IndexInfo read_dicts(string fname)
 {
    
     MyFile fl(fname);
     MapFileWriter fw("tmpfile.bin");
+
+    set<word_id_t> word_ids;
 
     cout << &fl;
     int total  = 0;
@@ -251,10 +277,12 @@ void read_dicts(string fname)
                         total += 1;
                         fl.refill();
                         index = map<word_id_t, vector<doc_id_t>>();
+                        
                     }
                     auto word = fl.read<word_id_t>();
                     // cout << word << endl;
                     index[word].push_back(doc_id);
+                    word_ids.insert(word);
                    
                 }
 
@@ -268,12 +296,12 @@ void read_dicts(string fname)
         cout << "Read " << total << endl;
     }
 
-    for(auto it: fw.dict_offsects)
-    {
-        cout << it << endl;
-    }
+    IndexInfo index_info;
+    index_info.offsets = move(fw.dict_offsets);
+    index_info.tmp_fname = fw.fname;
+    index_info.word_ids = move(word_ids);
 
-    
+    return index_info; 
 }
 
 int main(void)
@@ -281,9 +309,9 @@ int main(void)
     string f_name;
     cin >> f_name;
 
-    // mkdir("tosort", 0777);
-    read_dicts(f_name);
-    // rmdir("tosort");
+   
+    IndexInfo index_info = read_dicts(f_name);
+    
 
 
 
