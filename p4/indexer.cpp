@@ -25,11 +25,49 @@ using namespace std;
 using doc_id_t = unsigned long long;
 using word_id_t = unsigned long long;
 using word_cnt_t = unsigned int;
+using offset_t = unsigned long long;
+
+
+class InvalidRead:public exception
+{
+
+};
+
+
+template<typename T>
+void my_write(FILE *f, T var)
+{
+    char* arr = (char*)(void*) &var;
+    for(int i = 0; i < sizeof(var); ++i)
+    {   
+        fwrite(arr + i, sizeof(char), 1, f);
+    }
+}
+
+
+template<typename T>
+T my_read(FILE *f)
+{
+    T res;
+    char *arr = (char *)(void *) &res;
+
+    for(int i = sizeof(T) - 1; i >= 0; --i)
+    {
+        if(!fread(arr + i, sizeof(char), 1, f))
+        {
+            throw InvalidRead();
+        }
+    }
+
+    return res;
+}
+
+
 
 struct MyFile
 {
     FILE *f;
-    const size_t BUFF_SIZE = 1024 * 1024;
+    const size_t BUFF_SIZE = 1024;
     size_t bytes_read = 0;
     char *buff;
     string fname;
@@ -81,10 +119,10 @@ struct MyFile
         {
             // arr[i] = fgetc(f);
             // cout << (void*) (arr + i) << " " << &res << ' ';
-            int r;
+            // int r;
             if(!fread(arr + i, sizeof(char), 1, f))
             {
-                throw exception();
+                throw InvalidRead();
             }
         }
 
@@ -152,7 +190,7 @@ struct MyFile
 struct MapFileWriter
 {
     FILE* f;
-    vector<long long> dict_offsets;
+    vector<offset_t> dict_offsets;
     string fname;
     MapFileWriter(string name)
     {   
@@ -200,7 +238,7 @@ struct MapFileWriter
 
 struct IndexInfo
 {
-    vector<long long> offsets;
+    vector<offset_t> offsets;
     string tmp_fname;
     set<word_id_t> word_ids;
 
@@ -290,7 +328,7 @@ IndexInfo read_dicts(string fname)
        
         }
     }
-    catch(...)
+    catch(InvalidRead e)
     {
         fw.dump(index);
         cout << "Read " << total << endl;
@@ -304,14 +342,94 @@ IndexInfo read_dicts(string fname)
     return index_info; 
 }
 
+class FileProxy
+{
+
+
+    FILE *f;
+    offset_t offset;
+
+    word_id_t current_word;
+    bool word_valid;
+    doc_id_t current_doc;
+    bool doc_valid;
+
+    unsigned long long doc_counter;
+
+public:
+    FileProxy(string fname, offset_t offset)
+    {
+        doc_valid = false;
+        word_valid = false;
+
+        this->offset = offset;
+        f = fopen(fname.c_str(), "rb");
+        lseek(fileno(f), offset, SEEK_SET);
+        doc_counter = 0;
+    }
+
+    ~FileProxy()
+    {
+        // fclose(f);
+    }
+
+    word_id_t get_current_word()
+    {
+        if(word_valid && doc_counter > 0)
+        {
+            return current_word;
+        }
+
+        current_word = my_read<word_id_t>(f);
+        doc_counter = my_read<unsigned long long>(f);
+    }
+
+    doc_id_t get_next_doc()
+    {
+        if(doc_counter > 0)
+        {
+            return  my_read<doc_id_t>(f);
+        }
+
+        throw InvalidRead();
+    }
+
+    // FileProxy(FileProxy &&other)
+    // {
+    //     doc_valid = move(other.doc_valid);
+    // }
+};
+
+void write_index(IndexInfo &index_info)
+{
+    map <word_id_t, offset_t> final_offsets;
+    vector<FileProxy> proxies;
+
+    for(auto& offset: index_info.offsets)
+    {
+        proxies.push_back(FileProxy(index_info.tmp_fname, offset));
+    }
+
+    FILE *output = fopen("result.bin", "wb");
+
+    for(auto word: index_info.word_ids)
+    {
+        my_write<word_id_t>(output, word);
+        my_write<offset_t>(output, 0);
+    }
+    my_write<word_id_t>(output, 0);
+    my_write<offset_t>(output, 0);
+
+
+}
+
 int main(void)
 {
     string f_name;
     cin >> f_name;
 
-   
     IndexInfo index_info = read_dicts(f_name);
-    
+    write_index(index_info);
 
 
 
