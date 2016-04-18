@@ -607,6 +607,7 @@ int main(void)
     cin >> f_name;
 
     IndexInfo index_info = read_dicts(f_name);
+    cout << "Read dicts!" << endl;
     write_index(index_info);
 
 
