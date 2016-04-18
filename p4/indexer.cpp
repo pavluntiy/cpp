@@ -68,7 +68,7 @@ T my_read(FILE *f)
 struct MyFile
 {
     FILE *f;
-    const size_t BUFF_SIZE =  1024;
+    const size_t BUFF_SIZE =  128;
     size_t bytes_read = 0;
     char *buff;
     string fname;
@@ -227,6 +227,7 @@ struct MapFileWriter
             // cout << it.first << endl;
             sort(it.second.begin(), it.second.end());
             // cout << it.second.size() << endl;
+
             write<unsigned long long>(it.second.size());
 
             for(auto &word:it.second)
@@ -404,14 +405,24 @@ public:
         
     }
 
-    word_id_t get_next_word()
+    bool get_next_word()
     {
-        size--;
-        word_valid = true;
-        current_word = my_read<word_id_t>(f);
-        doc_counter = my_read<unsigned long long>(f);
-        // cout << "doc_counter " <<  doc_counter << endl;
-        return current_word;
+        if(size > 0){
+            size--;
+            word_valid = true;
+            current_word = my_read<word_id_t>(f);
+            doc_counter = my_read<unsigned long long>(f);
+            // cout << "doc_counter " <<  doc_counter << endl;
+            // return current_word;
+            return true;
+        }
+        else
+        {
+            // cout << "Lolol" << endl;
+            word_valid = false;
+            doc_counter = 0;
+            return false;
+        }
     }
 
     bool doc_list_empty()
@@ -434,7 +445,7 @@ public:
         throw InvalidRead();
     }
 
-    doc_id_t get_next_doc()
+    bool get_next_doc()
     {
         if(doc_counter > 0)
         {
@@ -443,12 +454,18 @@ public:
             current_doc = my_read<doc_id_t>(f);
             // cout << "get_next_doc " << current_doc << endl;
             doc_counter--;
-            return  current_doc;
+            // return  current_doc;
+            return true;
         }
         else
         {
-              get_next_word();
-              return get_next_doc();
+            if(get_next_word()){
+               return get_next_doc();
+            }
+            else
+            {
+                return false;
+            }
         }
     }
 
@@ -493,7 +510,7 @@ void write_index(IndexInfo &index_info)
                 continue;
             }
 
-            // cout << "Not empty\n";
+            // cout << i << " not empty\n";
             auto current_word = proxies[i].get_current_word();
             // cout << current_word << endl;
             if(!min_word_found || current_word < min_word)
@@ -504,6 +521,7 @@ void write_index(IndexInfo &index_info)
             changed = true;
         }
 
+        cout << "Min word: " << min_word << endl;
         my_write(output, min_word);
 
         if(!changed)
@@ -532,16 +550,18 @@ void write_index(IndexInfo &index_info)
                 }
 
                 auto current_doc = proxies[i].get_current_doc();
+                // cout << "\t\t\tTrying doc :" << current_doc << " " << min_doc << endl;
                 if(!min_doc_proxy_found || current_doc < min_doc)
                 {
                     min_doc_proxy = i;
                     min_doc = current_doc;
                     changed = true;
                     word_empty = false;
+                    min_doc_proxy_found = true;
                 }
             }
 
-            // cout << min_doc << endl;
+            cout << "\t\t Min doc " << min_doc << endl;
             my_write(output, min_doc);
             total += 1;
             changed = true;
