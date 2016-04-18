@@ -68,7 +68,7 @@ T my_read(FILE *f)
 struct MyFile
 {
     FILE *f;
-    const size_t BUFF_SIZE =  128;
+    const size_t BUFF_SIZE =  64;
     size_t bytes_read = 0;
     char *buff;
     string fname;
@@ -220,24 +220,26 @@ struct MapFileWriter
         
         dict_offsets.push_back(lseek(fileno(f), 0, SEEK_CUR));
         write<unsigned long long>(index.size());
-        // cout << index.size() << endl;
+        // cout << "Dict size " << index.size() << endl;
         for(auto &it: index)
         {   
             write(it.first);
-            // cout << it.first << endl;
+            // cout << "\tword " << it.first << endl;
             sort(it.second.begin(), it.second.end());
-            // cout << it.second.size() << endl;
+            // cout << "\tword docs " << it.second.size() << endl;
 
             write<unsigned long long>(it.second.size());
 
             for(auto &word:it.second)
             {   
-                // cout << word << ' ';
+                // cout << "\t\t" << word << ' ';
                 write(word);
             }
-            // cout << "\n===============" << endl;
+            // cout << "\n\t===============" << endl;
 
         }
+
+        // cout << "-End of dict\n" << endl;
 
         
 
@@ -521,13 +523,15 @@ void write_index(IndexInfo &index_info)
             changed = true;
         }
 
-        cout << "Min word: " << min_word << endl;
-        my_write(output, min_word);
+        
 
         if(!changed)
         {
             break;
         }
+
+        cout << "Min word: " << min_word << endl;
+        my_write(output, min_word);
         bool word_empty = false;
         // cout << "TOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOo\n";
 
@@ -561,11 +565,13 @@ void write_index(IndexInfo &index_info)
                 }
             }
 
-            cout << "\t\t Min doc " << min_doc << endl;
-            my_write(output, min_doc);
-            total += 1;
-            changed = true;
-            proxies[min_doc_proxy].get_next_doc();
+            if(!word_empty){
+                cout << "\t\t Min doc " << min_doc << endl;
+                my_write(output, min_doc);
+                total += 1;
+                changed = true;
+                proxies[min_doc_proxy].get_next_doc();
+            }
             // cout << "asdfsdaf " << proxies[min_doc_proxy].get_next_doc() << " " <<   proxies[min_doc_proxy].get_current_word() << endl;
         }
 
