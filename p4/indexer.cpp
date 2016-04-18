@@ -68,7 +68,7 @@ T my_read(FILE *f)
 struct MyFile
 {
     FILE *f;
-    const size_t BUFF_SIZE =  64;
+    const size_t BUFF_SIZE =  1024 * 1024;
     size_t bytes_read = 0;
     char *buff;
     string fname;
@@ -429,18 +429,19 @@ public:
 
     bool doc_list_empty()
     {
-        return doc_counter == 0;
+        return doc_counter == 0 && doc_valid == false;
     }
 
     bool is_empty()
     {
-        return size == 0;
+        return size == 0 && word_valid == false;
     }
 
     doc_id_t get_current_doc()
     {
         if(doc_valid)
         {
+            // cout << "\t\t" << current_doc << endl;
             return  current_doc;
         }
 
@@ -466,6 +467,7 @@ public:
             }
             else
             {
+                doc_valid = false;
                 return false;
             }
         }
@@ -475,6 +477,11 @@ public:
     // {
     //     doc_valid = move(other.doc_valid);
     // }
+
+    int get_size()
+    {
+        return size;
+    }
 };
 
 void write_index(IndexInfo &index_info)
@@ -487,6 +494,11 @@ void write_index(IndexInfo &index_info)
         // cout << "offset: " << offset << endl;
         proxies.push_back(FileProxy(index_info.tmp_fname, offset));
     }
+
+    // for(int i = 0; i < proxies.size(); ++i)
+    // {
+    //     cout << i << " contains " << proxies[i].get_size() << endl;
+    // }
 
     FILE *output = fopen("result.bin", "wb");
 
@@ -501,6 +513,8 @@ void write_index(IndexInfo &index_info)
 
     bool changed = true;
 
+    int stat = 0;
+
     while(changed){
         changed = false;
         bool min_word_found = false;
@@ -512,7 +526,7 @@ void write_index(IndexInfo &index_info)
                 continue;
             }
 
-            // cout << i << " not empty\n";
+            // cout << i << " not empty, contains " << proxies[i].get_size() << "\n";
             auto current_word = proxies[i].get_current_word();
             // cout << current_word << endl;
             if(!min_word_found || current_word < min_word)
@@ -575,8 +589,11 @@ void write_index(IndexInfo &index_info)
             // cout << "asdfsdaf " << proxies[min_doc_proxy].get_next_doc() << " " <<   proxies[min_doc_proxy].get_current_word() << endl;
         }
 
+        stat += total;
         cout << "total = " << total << endl;
     }
+
+    cout << "Read " << stat << endl;
 
     // cout << min_doc << endl;
 
