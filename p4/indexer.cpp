@@ -68,7 +68,7 @@ T my_read(FILE *f)
 struct MyFile
 {
     FILE *f;
-    const size_t BUFF_SIZE =  1024 * 1024;
+    const size_t BUFF_SIZE =  1024 * 1024 * 1024;
     size_t bytes_read = 0;
     char *buff;
     string fname;
@@ -116,7 +116,7 @@ struct MyFile
 
         // auto was_read = fread((char *) (void*)&res, sizeof(res), 1,  f);
 
-        for(int i = sizeof(T) - 1; i >= 0; --i)
+        for(int i = 0; i < sizeof(T); ++i)
         {
             // arr[i] = fgetc(f);
             // cout << (void*) (arr + i) << " " << &res << ' ';
@@ -136,7 +136,7 @@ struct MyFile
     void unget(T var)
     {
         char* arr = (char*)(void*) &var;
-        for(int i = 0; i < sizeof(var); ++i)
+        for(int i = (int) sizeof(var) - 1; i > 0; --i)
         {   
             ungetc(arr[i], f);
         }
@@ -501,6 +501,8 @@ void write_index(IndexInfo &index_info)
     // }
 
     FILE *output = fopen("result.bin", "wb");
+    FILE *offset_writer = fopen("result.bin", "wb");
+    FILE *count_writer = fopen("result.bin", "wb");
 
     for(auto word: index_info.word_ids)
     {
@@ -509,6 +511,8 @@ void write_index(IndexInfo &index_info)
     }
     my_write<word_id_t>(output, 0);
     my_write<offset_t>(output, 0);
+
+    lseek(fileno(offset_writer), sizeof(word_id_t), SEEK_SET);
 
 
     bool changed = true;
@@ -519,6 +523,13 @@ void write_index(IndexInfo &index_info)
         changed = false;
         bool min_word_found = false;
         word_id_t min_word = -1;
+
+        offset_t current_offset = lseek(fileno(output), 0, SEEK_CUR);
+        my_write(offset_writer, current_offset);
+        fflush(offset_writer);
+        lseek(fileno(offset_writer), sizeof(word_id_t) + sizeof(offset_t), SEEK_CUR);
+        lseek(fileno(count_writer), current_offset, SEEK_SET);
+
         for(int i = 0; i < proxies.size(); ++i)
         {
             if(proxies[i].is_empty())
@@ -545,11 +556,11 @@ void write_index(IndexInfo &index_info)
         }
 
         cout << "Min word: " << min_word << endl;
-        my_write(output, min_word);
+        my_write<word_id_t>(output, 0);
         bool word_empty = false;
         // cout << "TOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOo\n";
 
-        int total = 0;
+        unsigned long long total = 0;
         while(!word_empty){
             int min_doc_proxy = 0;
             doc_id_t min_doc = 0;
@@ -589,8 +600,11 @@ void write_index(IndexInfo &index_info)
             // cout << "asdfsdaf " << proxies[min_doc_proxy].get_next_doc() << " " <<   proxies[min_doc_proxy].get_current_word() << endl;
         }
 
+        fflush(output);
         stat += total;
         cout << "total = " << total << endl;
+        my_write(count_writer, total);
+        fflush(count_writer);
     }
 
     cout << "Read " << stat << endl;
