@@ -612,7 +612,7 @@ void write_index(IndexInfo &index_info)
         fflush(count_writer);
     }
 
-    cout << "Read " << stat << endl;
+    // cout << "Read " << stat << endl;
 
     // cout << min_doc << endl;
 
