@@ -38,7 +38,7 @@ template<typename T>
 void my_write(FILE *f, T var)
 {
     char* arr = (char*)(void*) &var;
-    for(int i = (int) sizeof(var) - 1; i >= 0; --i)
+    for(int i = 0; i < sizeof(var); ++i)
     {   
         fwrite(arr + i, sizeof(char), 1, f);
     }
@@ -510,7 +510,10 @@ void write_index(IndexInfo &index_info)
         my_write<offset_t>(output, 0);
     }
     my_write<word_id_t>(output, 0);
+    // fflush(output);
     my_write<offset_t>(output, 0);
+
+    fflush(output);
 
     lseek(fileno(offset_writer), sizeof(word_id_t), SEEK_SET);
 
@@ -525,10 +528,8 @@ void write_index(IndexInfo &index_info)
         word_id_t min_word = -1;
 
         offset_t current_offset = lseek(fileno(output), 0, SEEK_CUR);
-        my_write(offset_writer, current_offset);
-        fflush(offset_writer);
-        lseek(fileno(offset_writer), sizeof(word_id_t) + sizeof(offset_t), SEEK_CUR);
-        lseek(fileno(count_writer), current_offset, SEEK_SET);
+        // cout << current_offset << endl;
+        
 
         for(int i = 0; i < proxies.size(); ++i)
         {
@@ -555,12 +556,16 @@ void write_index(IndexInfo &index_info)
             break;
         }
 
-        cout << "Min word: " << min_word << endl;
-        my_write<word_id_t>(output, 0);
-        bool word_empty = false;
-        // cout << "TOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOo\n";
+        // cout << "Min word: " << min_word << endl;
+        my_write(offset_writer, current_offset);
+        fflush(offset_writer);
+        lseek(fileno(offset_writer), sizeof(word_id_t), SEEK_CUR);
+        lseek(fileno(count_writer), current_offset, SEEK_SET);
 
-        unsigned long long total = 0;
+        my_write<word_cnt_t>(output, 0);
+        bool word_empty = false;
+
+        word_cnt_t total = 0;
         while(!word_empty){
             int min_doc_proxy = 0;
             doc_id_t min_doc = 0;
@@ -591,7 +596,7 @@ void write_index(IndexInfo &index_info)
             }
 
             if(!word_empty){
-                cout << "\t\t Min doc " << min_doc << endl;
+                // cout << "\t\t Min doc " << min_doc << endl;
                 my_write(output, min_doc);
                 total += 1;
                 changed = true;
@@ -602,7 +607,7 @@ void write_index(IndexInfo &index_info)
 
         fflush(output);
         stat += total;
-        cout << "total = " << total << endl;
+        // cout << "total = " << total << endl;
         my_write(count_writer, total);
         fflush(count_writer);
     }
@@ -615,13 +620,13 @@ void write_index(IndexInfo &index_info)
 
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
-    string f_name;
-    cin >> f_name;
+    string f_name(argv[1]);
+    // cin >> f_name;
 
     IndexInfo index_info = read_dicts(f_name);
-    cout << "Read dicts!" << endl;
+    // cout << "Read dicts!" << endl;
     write_index(index_info);
 
 
