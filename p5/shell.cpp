@@ -11,6 +11,7 @@
 #include <sys/fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 using namespace std;
 
@@ -187,6 +188,11 @@ public:
         this->stdin = p.get_write();
     }
 
+    void interrupt()
+    {
+        ::kill(pid, SIGINT);
+    }
+
 
 };
 
@@ -197,12 +203,25 @@ void default_exit_handler(pid_t pid, int exited_correctly, int exit_status)
 }
 
 
+
+Process *current_proc;
+
+void singal_handler(int signum)
+{
+    current_proc->interrupt();
+}
+
 int main(void)
 {
 
+    Process proc;
+    current_proc = &proc;
+    
     string command;
     // if(is)
     // cout << ">>>>>> ";
+    signal(SIGINT, singal_handler);
+
     while(getline(cin, command))
     {
 
@@ -215,7 +234,7 @@ int main(void)
         boost::algorithm::trim(command); 
         boost::split(strs, command, boost::is_any_of("\t \n"));
 
-        Process proc;
+        
         // cout << "###### " << strs[0] << endl;
         vector<string> args;
         for(auto &it: strs)
