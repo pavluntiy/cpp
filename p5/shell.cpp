@@ -36,6 +36,11 @@ public:
         APPEND
     };
 
+    File()
+    {
+        fd = -1;
+    };
+
     File(string fname, Mode mode = Mode::READ):
         fname(fname)
     {
@@ -124,6 +129,11 @@ protected:
     }
 
 public:
+    Process()
+    {
+        stdin_subst = false;
+        stdout_subst = false;
+    }
 
 
     void set_command(string command)
@@ -155,13 +165,13 @@ public:
         if(!pid)
         {
             if(stdin_subst)
-            {
-                ::dup2(0, stdin);
+            {   
+                ::dup2(stdin, 0);
             }
 
             if(stdout_subst)
             {
-                ::dup2(1, stdout);
+                ::dup2(stdout, 1);
             }
 
             execvp(command.c_str(), const_cast<char *const *>(vargs));
@@ -182,14 +192,23 @@ public:
 
     void set_stdin(const File &f)
     {   
+        if(f.get_file_descriptor() == -1)
+        {
+            return;
+        }
+
         stdin_subst = true;
         this->stdin = f.get_file_descriptor();
     }
 
     void set_stdout(const File &f)
     {
+        if(f.get_file_descriptor() == -1)
+        {
+            return;
+        }
         stdout_subst = true;
-        this->stdin = f.get_file_descriptor();
+        this->stdout = f.get_file_descriptor();
     }
 
     void set_stdin(const Pipe &p)
@@ -248,6 +267,7 @@ public:
         boost::split(strs, str, boost::is_any_of("\t \n"));  
         for(auto &it: strs)
         {
+            boost::trim(it);
             if(it != "")
             {
                 args.push_back(it);
@@ -269,7 +289,115 @@ public:
         return proc.run(default_exit_handler);
     }
 
+};
 
+class FileRedirectCmd : public Cmd
+{
+
+    SimpleCmd *main_cmd;
+    File out;
+    File in;
+
+    void get_redirects(string str)
+    {
+        char type = str[0];
+
+        str = str.substr(1);
+
+        int pos = 0;
+        bool found = false;
+        for(; pos < str.size(); ++pos)
+        {
+            if(str[pos] == '>' || str[pos] == '<')
+            {
+                found = true;
+                break;
+            }
+        }
+
+        auto fname = str.substr(0, pos);
+        boost::trim(fname);
+        if(type == '<')
+        {
+            in = File(fname, File::Mode::READ);
+        }
+        else
+        {
+            out = File(fname, File::Mode::WRITE);
+        }
+
+        if(found)
+        {
+            get_redirects(str.substr(pos, str.size() - pos));
+        }
+
+    }
+
+public:
+    FileRedirectCmd (string str)
+    {
+
+        vector<string> strs;
+        boost::algorithm::trim(str); 
+        // boost::split(strs, str, boost::is_any_of("><"));  
+        vector<string> trimmed;
+
+        // int pos = boost::find(str, boost::is_any_of("><"));
+        int pos = 0;
+        bool found = false;
+        for(; pos < str.size(); ++pos)
+        {
+            if(str[pos] == '>' || str[pos] == '<')
+            {
+                found = true;
+                break;
+            }
+        }
+
+        string command_str;
+        if(found)
+        {   
+            command_str = str.substr(0, pos);
+            get_redirects(str.substr(pos, str.size() - pos));
+        }
+        else
+        {
+            command_str = str;
+        }
+
+
+
+        // for(auto &it: strs)
+        // {
+            // boost::trim(it);
+        //     if(it != "")
+        //     {
+        //         trimmed.push_back(it);
+        //         // cout << it << endl;
+        //     }
+        // }
+
+        main_cmd = new SimpleCmd(command_str);
+
+
+
+    }
+
+    int run(){
+        // Process proc;
+        // proc.set_command(args[0]);
+        // proc.set_args(args);
+        // return proc.run(default_exit_handler);
+    }
+
+    int run(Process &proc){
+        // proc.set_command(args[0]);
+        // proc.set_args(args);
+
+        proc.set_stdin(in);
+        proc.set_stdout(out);
+        return main_cmd->run(proc);
+    }
 
 };
 
@@ -277,8 +405,7 @@ public:
 int main(void)
 {
 
-    Process proc;
-    current_proc = &proc;
+    
     
     string command;
     // if(is)
@@ -286,17 +413,16 @@ int main(void)
     signal(SIGINT, singal_handler);
 
     while(getline(cin, command))
-    {
-
+    {   
+        Process proc;
+        current_proc = &proc;
         if(command == "")
         {
             continue;
         }
 
-        SimpleCmd cmd(command);
+        FileRedirectCmd cmd(command);
         cmd.run(proc);
-        
-
     }
     
 }
