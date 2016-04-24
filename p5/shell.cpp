@@ -105,7 +105,7 @@ public:
 class Process
 {
 public:
-    using exit_handler_t = function<void(pid_t, int, int)>;
+    using exit_handler_t = function<int(pid_t, int, int)>;
 protected:
     pid_t pid;
     string command;
@@ -116,16 +116,35 @@ protected:
     file_descriptor_t stdin;
 
     exit_handler_t exit_handler;
+    exit_handler_t ok_handler;
+    exit_handler_t fail_handler;
 
     bool stdin_subst;
     bool stdout_subst;
 
-    void on_exit(bool exited_correctly, int exit_status)
+
+
+    int on_exit(bool exited_correctly, int exit_status)
     {
+        
+        cout << "ON EXIT: " << exited_correctly << " " << exit_status << endl;
+        
+        if(ok_handler && (exited_correctly && !exit_status))
+        {
+            return ok_handler(pid, exited_correctly, exit_status);
+        }
+
+        if(fail_handler && (!exited_correctly || exit_status))
+        {
+            return fail_handler(pid, exited_correctly, exit_status);
+        }
+
         if (exit_handler)
         {        
-            exit_handler(pid, exited_correctly, exit_status);
+            return exit_handler(pid, exited_correctly, exit_status);
         }
+
+        return exit_status;
     }
 
 public:
@@ -135,6 +154,20 @@ public:
         stdout_subst = false;
     }
 
+    void set_ok_handler(exit_handler_t handler)
+    {
+        ok_handler = handler;
+    }
+
+    void set_fail_handler(exit_handler_t handler)
+    {
+        fail_handler = handler;
+    }
+
+    void set_exit_handler(exit_handler_t handler)
+    {
+        exit_handler = handler;
+    }
 
     void set_command(string command)
     {
@@ -146,13 +179,33 @@ public:
         this->args = args;
     }
 
+    int run_function(function<int()> f)
+    {   
+        pid = fork();
+        exit_handler = exit_handler_t();
+        if(!pid)
+        {
+            cout << "Running function in " << getpid() << endl;
+            exit(f()); 
+        }
+        else
+        {
+            cout << "Waiting  " << pid << " function in " << getpid() << endl;
+            int wait_status;
+            wait(&wait_status);
+
+            auto exited_correctly = WIFEXITED(wait_status);
+            auto exit_status = WEXITSTATUS(wait_status);
+       
+            return on_exit(exited_correctly, exit_status);
+        }
+    }
+
     int run(exit_handler_t exit_handler = exit_handler_t())
     {   
         this->exit_handler = exit_handler;
 
         int wait_status;
-        pid = fork();
-
         const char ** vargs = const_cast<const char**>(new char *[args.size() + 1]);
 
         for(int i = 0; i < args.size(); ++i)
@@ -161,9 +214,13 @@ public:
         }
 
         vargs[args.size()] = nullptr;
+        pid = fork();
+
+        
 
         if(!pid)
-        {
+        {   
+            
             if(stdin_subst)
             {   
                 ::dup2(stdin, 0);
@@ -174,7 +231,10 @@ public:
                 ::dup2(stdout, 1);
             }
 
+            cout << command << endl;
+
             execvp(command.c_str(), const_cast<char *const *>(vargs));
+            exit(-1);
             throw system_error(errno, system_category());
         }
         else
@@ -184,9 +244,9 @@ public:
             auto exited_correctly = WIFEXITED(wait_status);
             auto exit_status = WEXITSTATUS(wait_status);
 
-            on_exit(exited_correctly, exit_status);
+            
             delete [] vargs;
-            return exit_status;
+            return on_exit(exited_correctly, exit_status);
         }
     }
 
@@ -232,9 +292,10 @@ public:
 };
 
 
-void default_exit_handler(pid_t pid, int exited_correctly, int exit_status)
+int default_exit_handler(pid_t pid, int exited_correctly, int exit_status)
 {
     cerr << "Process " << pid << " exited: " << exit_status << endl;
+    return exit_status;
 }
 
 
@@ -338,11 +399,9 @@ public:
     {
 
         vector<string> strs;
-        boost::algorithm::trim(str); 
-        // boost::split(strs, str, boost::is_any_of("><"));  
+        boost::algorithm::trim(str);  
         vector<string> trimmed;
 
-        // int pos = boost::find(str, boost::is_any_of("><"));
         int pos = 0;
         bool found = false;
         for(; pos < str.size(); ++pos)
@@ -365,34 +424,14 @@ public:
             command_str = str;
         }
 
-
-
-        // for(auto &it: strs)
-        // {
-            // boost::trim(it);
-        //     if(it != "")
-        //     {
-        //         trimmed.push_back(it);
-        //         // cout << it << endl;
-        //     }
-        // }
-
         main_cmd = new SimpleCmd(command_str);
-
-
 
     }
 
     int run(){
-        // Process proc;
-        // proc.set_command(args[0]);
-        // proc.set_args(args);
-        // return proc.run(default_exit_handler);
     }
 
     int run(Process &proc){
-        // proc.set_command(args[0]);
-        // proc.set_args(args);
 
         proc.set_stdin(in);
         proc.set_stdout(out);
@@ -401,6 +440,138 @@ public:
 
 };
 
+
+class LogicCmd : public Cmd
+{
+
+    FileRedirectCmd *left;
+    FileRedirectCmd *right;
+
+    enum class Type{AND, OR};
+
+    Type type;
+
+    vector<FileRedirectCmd*> commands;
+
+    int or_handler(Process &proc, pid_t pid,  int exited_correctly, int exit_status)
+    {
+
+            cout << "OR HANDLER " << endl;
+            proc.set_fail_handler(
+                    [&]
+                    (pid_t pid, int exited_correctly, int exit_status) -> int
+                    {
+                        return or_handler(proc, pid, exited_correctly, exit_status);
+                    }
+            );
+            
+            if(right)
+            {   
+                cout << "SETTING RIGHT" << endl;
+                return right->run(proc);
+            }
+
+            exit(exit_status);
+    
+    }
+
+    int and_handler(Process &proc, pid_t pid,  int exited_correctly, int exit_status)
+    {
+            cout << getpid() << " " << pid << endl;
+            proc.set_ok_handler(
+                    [&]
+                    (pid_t pid, int exited_correctly, int exit_status) -> int
+                    {
+                        return and_handler(proc, pid, exited_correctly, exit_status);
+                    }
+            );
+
+            if(right)
+            {
+                return right->run(proc);
+            }
+
+            exit(exit_status);
+    
+    }
+
+public:
+    LogicCmd (string str)
+    {
+        left = nullptr;
+        right = nullptr;
+        auto pos1 = str.find("||");
+        auto pos2 = str.find("&&");
+
+        auto pos = -1;
+        if(pos1 == -1 && pos2 == -1)
+        {
+            left = new FileRedirectCmd(str);
+            return;
+        }
+
+        if(pos1 == -1)
+        {
+            type = Type::AND;
+            pos = pos2;
+        }
+        else
+        {
+            type = Type::OR;
+            pos = pos1;
+        }
+
+
+
+        auto str_a = str.substr(0, pos);
+        auto str_b = str.substr(pos + 2, str.size() - pos - 1);
+
+        cout << pos << endl;
+
+        left = new FileRedirectCmd(str_a);
+        right = new FileRedirectCmd(str_b);
+
+    }
+
+    int run(){
+    }
+
+    int run(Process &proc){
+        if(!right)
+        {
+            return left->run(proc);
+        }
+
+        
+        return proc.run_function(
+            [&]
+            () -> int
+            {   
+                if(type == Type::OR){
+                    proc.set_fail_handler(
+                                [&]
+                                (pid_t pid, int exited_correctly, int exit_status) -> int
+                                {
+                                    return or_handler(proc, pid, exited_correctly, exit_status);
+                                }
+                        );
+                }
+
+                if(type == Type::AND){
+                    proc.set_ok_handler(
+                                [&]
+                                (pid_t pid, int exited_correctly, int exit_status) -> int
+                                {
+                                    return and_handler(proc, pid, exited_correctly, exit_status);
+                                }
+                        );
+                }
+                return left->run(proc);
+            }
+        );
+    }
+
+};
 
 int main(void)
 {
@@ -421,7 +592,7 @@ int main(void)
             continue;
         }
 
-        FileRedirectCmd cmd(command);
+        LogicCmd cmd(command);
         cmd.run(proc);
     }
     
