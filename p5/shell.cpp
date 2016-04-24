@@ -202,7 +202,8 @@ public:
     }
 
     int run(exit_handler_t exit_handler = exit_handler_t())
-    {   
+    {       
+        // cout << "Running process " << this << endl;
         this->exit_handler = exit_handler;
 
         int wait_status;
@@ -457,11 +458,13 @@ class LogicCmd : public Cmd
     {
 
             // cout << "OR HANDLER " << endl;
+            // cout << &proc << endl;
+            Process new_process;
             proc.set_fail_handler(
                     [&]
                     (pid_t pid, int exited_correctly, int exit_status) -> int
                     {
-                        return or_handler(proc, pid, exited_correctly, exit_status);
+                        return or_handler(new_process, pid, exited_correctly, exit_status);
                     }
             );
             
@@ -480,11 +483,13 @@ class LogicCmd : public Cmd
     int and_handler(Process &proc, pid_t pid,  int exited_correctly, int exit_status)
     {
             // cout << getpid() << " " << pid << endl;
+        // cout << &proc << endl;
+            Process new_process;
             proc.set_ok_handler(
                     [&]
                     (pid_t pid, int exited_correctly, int exit_status) -> int
                     {
-                        return and_handler(proc, pid, exited_correctly, exit_status);
+                        return and_handler(new_process, pid, exited_correctly, exit_status);
                     }
             );
 
@@ -492,7 +497,7 @@ class LogicCmd : public Cmd
             {
                 auto tmp = right;
                 right = nullptr;
-                tmp->run(proc);
+                tmp->run(new_process);
                 delete tmp;
             }
 
@@ -557,9 +562,11 @@ public:
 
 
         return proc.run_function(
-            [&]
+            [this]
             () -> int
             {   
+                Process proc;
+                // cout << ">>>>>>>>" << &proc << endl;
                 if(type == Type::OR){
                     proc.set_fail_handler(
                                 [&]
