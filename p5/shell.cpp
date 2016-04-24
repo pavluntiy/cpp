@@ -112,6 +112,9 @@ protected:
 
     exit_handler_t exit_handler;
 
+    bool stdin_subst;
+    bool stdout_subst;
+
     void on_exit(bool exited_correctly, int exit_status)
     {
         if (exit_handler)
@@ -151,6 +154,15 @@ public:
 
         if(!pid)
         {
+            if(stdin_subst)
+            {
+                ::dup2(0, stdin);
+            }
+
+            if(stdout_subst)
+            {
+                ::dup2(1, stdout);
+            }
 
             execvp(command.c_str(), const_cast<char *const *>(vargs));
             throw system_error(errno, system_category());
@@ -169,22 +181,26 @@ public:
     }
 
     void set_stdin(const File &f)
-    {
+    {   
+        stdin_subst = true;
         this->stdin = f.get_file_descriptor();
     }
 
     void set_stdout(const File &f)
     {
+        stdout_subst = true;
         this->stdin = f.get_file_descriptor();
     }
 
     void set_stdin(const Pipe &p)
     {
+        stdin_subst = true;
         this->stdin = p.get_read();
     }
 
     void set_stdout(const Pipe &p)
     {
+        stdout_subst = true;
         this->stdin = p.get_write();
     }
 
@@ -211,6 +227,53 @@ void singal_handler(int signum)
     current_proc->interrupt();
 }
 
+
+class Cmd
+{
+public:
+    virtual int run() = 0;
+    virtual int run(Process &proc) = 0;
+};
+
+class SimpleCmd : public Cmd
+{
+
+vector<string> args;
+public:
+    SimpleCmd (string str)
+    {
+
+        vector<string> strs;
+        boost::algorithm::trim(str); 
+        boost::split(strs, str, boost::is_any_of("\t \n"));  
+        for(auto &it: strs)
+        {
+            if(it != "")
+            {
+                args.push_back(it);
+            }
+        }
+
+    }
+
+    int run(){
+        Process proc;
+        proc.set_command(args[0]);
+        proc.set_args(args);
+        return proc.run(default_exit_handler);
+    }
+
+    int run(Process &proc){
+        proc.set_command(args[0]);
+        proc.set_args(args);
+        return proc.run(default_exit_handler);
+    }
+
+
+
+};
+
+
 int main(void)
 {
 
@@ -230,25 +293,10 @@ int main(void)
             continue;
         }
 
-        vector<string> strs;
-        boost::algorithm::trim(command); 
-        boost::split(strs, command, boost::is_any_of("\t \n"));
-
+        SimpleCmd cmd(command);
+        cmd.run(proc);
         
-        // cout << "###### " << strs[0] << endl;
-        vector<string> args;
-        for(auto &it: strs)
-        {
-            if(it != "")
-            {
-                args.push_back(it);
-            }
-        }
 
-        proc.set_command(args[0]);
-        proc.set_args(args);
-        proc.run(default_exit_handler);
-        // cout << ">>>>>> ";
     }
     
 }
