@@ -127,7 +127,7 @@ protected:
     int on_exit(bool exited_correctly, int exit_status)
     {
         
-        cout << "ON EXIT: " << exited_correctly << " " << exit_status << endl;
+        // cout << "ON EXIT: " << exited_correctly << " " << exit_status << endl;
         
         if(ok_handler && (exited_correctly && !exit_status))
         {
@@ -185,12 +185,12 @@ public:
         exit_handler = exit_handler_t();
         if(!pid)
         {
-            cout << "Running function in " << getpid() << endl;
+            // cout << "Running function in " << getpid() << endl;
             exit(f()); 
         }
         else
         {
-            cout << "Waiting  " << pid << " function in " << getpid() << endl;
+            // cout << "Waiting  " << pid << " function in " << getpid() << endl;
             int wait_status;
             wait(&wait_status);
 
@@ -231,7 +231,7 @@ public:
                 ::dup2(stdout, 1);
             }
 
-            cout << command << endl;
+            // cout << command << endl;
 
             execvp(command.c_str(), const_cast<char *const *>(vargs));
             exit(-1);
@@ -432,7 +432,7 @@ public:
     }
 
     int run(Process &proc){
-
+        // cout << "Running " << this << endl;
         proc.set_stdin(in);
         proc.set_stdout(out);
         return main_cmd->run(proc);
@@ -445,7 +445,7 @@ class LogicCmd : public Cmd
 {
 
     FileRedirectCmd *left;
-    FileRedirectCmd *right;
+    LogicCmd *right;
 
     enum class Type{AND, OR};
 
@@ -456,7 +456,7 @@ class LogicCmd : public Cmd
     int or_handler(Process &proc, pid_t pid,  int exited_correctly, int exit_status)
     {
 
-            cout << "OR HANDLER " << endl;
+            // cout << "OR HANDLER " << endl;
             proc.set_fail_handler(
                     [&]
                     (pid_t pid, int exited_correctly, int exit_status) -> int
@@ -467,8 +467,10 @@ class LogicCmd : public Cmd
             
             if(right)
             {   
-                cout << "SETTING RIGHT" << endl;
-                return right->run(proc);
+                auto tmp = right;
+                right = nullptr;
+                tmp->run(proc);
+                delete tmp;
             }
 
             exit(exit_status);
@@ -477,7 +479,7 @@ class LogicCmd : public Cmd
 
     int and_handler(Process &proc, pid_t pid,  int exited_correctly, int exit_status)
     {
-            cout << getpid() << " " << pid << endl;
+            // cout << getpid() << " " << pid << endl;
             proc.set_ok_handler(
                     [&]
                     (pid_t pid, int exited_correctly, int exit_status) -> int
@@ -488,7 +490,10 @@ class LogicCmd : public Cmd
 
             if(right)
             {
-                return right->run(proc);
+                auto tmp = right;
+                right = nullptr;
+                tmp->run(proc);
+                delete tmp;
             }
 
             exit(exit_status);
@@ -516,9 +521,14 @@ public:
             pos = pos2;
         }
         else
+        if(pos2 == -1)
         {
             type = Type::OR;
             pos = pos1;
+        }
+        else
+        {
+            pos = min(pos1, pos2);
         }
 
 
@@ -526,10 +536,12 @@ public:
         auto str_a = str.substr(0, pos);
         auto str_b = str.substr(pos + 2, str.size() - pos - 1);
 
-        cout << pos << endl;
+        // cout << pos << endl;
+        // cout << "@@ " << str_a << endl;
+        // cout << "** " << str_b << endl;
 
         left = new FileRedirectCmd(str_a);
-        right = new FileRedirectCmd(str_b);
+        right = new LogicCmd(str_b);
 
     }
 
@@ -537,12 +549,13 @@ public:
     }
 
     int run(Process &proc){
+
         if(!right)
         {
             return left->run(proc);
         }
 
-        
+
         return proc.run_function(
             [&]
             () -> int
