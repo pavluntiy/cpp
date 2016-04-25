@@ -68,7 +68,7 @@ T my_read(FILE *f)
 struct MyFile
 {
     FILE *f;
-    const size_t BUFF_SIZE =  1024 * 1024;
+    const size_t BUFF_SIZE =  1024 * 1024 * 128;
     size_t bytes_read = 0;
     char *buff;
     string fname;
