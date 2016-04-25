@@ -163,10 +163,32 @@ protected:
     }
 
 public:
+
     Cmd()
     {
         stdin_subst = false;
         stdout_subst = false;
+    }
+
+    void set_stdin(const File &f)
+    {   
+        if(f.get_file_descriptor() == -1)
+        {
+            return;
+        }
+
+        stdin_subst = true;
+        this->stdin = f.get_file_descriptor();
+    }
+
+    void set_stdout(const File &f)
+    {
+        if(f.get_file_descriptor() == -1)
+        {
+            return;
+        }
+        stdout_subst = true;
+        this->stdout = f.get_file_descriptor();
     }
 
     void set_ok_handler(exit_handler_t handler)
@@ -222,7 +244,7 @@ public:
     virtual
     void in_parent(){}
 
-    int run()
+    virtual int run()
     {       
         int wait_status;
         const char ** vargs = const_cast<const char**>(new char *[args.size() + 1]);
@@ -269,38 +291,18 @@ public:
         }
     }
 
-    void set_stdin(const File &f)
-    {   
-        if(f.get_file_descriptor() == -1)
-        {
-            return;
-        }
+ 
+    // void set_stdin(const Pipe &p)
+    // {
+    //     stdin_subst = true;
+    //     this->stdin = p.get_read();
+    // }
 
-        stdin_subst = true;
-        this->stdin = f.get_file_descriptor();
-    }
-
-    void set_stdout(const File &f)
-    {
-        if(f.get_file_descriptor() == -1)
-        {
-            return;
-        }
-        stdout_subst = true;
-        this->stdout = f.get_file_descriptor();
-    }
-
-    void set_stdin(const Pipe &p)
-    {
-        stdin_subst = true;
-        this->stdin = p.get_read();
-    }
-
-    void set_stdout(const Pipe &p)
-    {
-        stdout_subst = true;
-        this->stdin = p.get_write();
-    }
+    // void set_stdout(const Pipe &p)
+    // {
+    //     stdout_subst = true;
+    //     this->stdin = p.get_write();
+    // }
 
     void interrupt()
     {
@@ -319,67 +321,70 @@ public:
     }
 };
 
-// class FileRedirectCmd : public Cmd
-// {
+class FileRedirectCmd : public Cmd
+{
 
-//     Cmd *main_cmd;
-//     File out;
-//     File in;
+    Cmd *main_cmd;
+    File out;
+    File in;
 
-//     void get_redirects(string str)
-//     {
-//         char type = str[0];
+    bool stdout_subst;
+    bool stdin_subst;
 
-//         str = str.substr(1);
+    void get_redirects(string str)
+    {
+        char type = str[0];
 
-//         int pos = 0;
-//         bool found = false;
-//         for(; pos < str.size(); ++pos)
-//         {
-//             if(str[pos] == '>' || str[pos] == '<')
-//             {
-//                 found = true;
-//                 break;
-//             }
-//         }
+        str = str.substr(1);
 
-//         auto fname = str.substr(0, pos);
-//         boost::trim(fname);
-//         if(type == '<')
-//         {
-//             in = File(fname, File::Mode::READ);
-//         }
-//         else
-//         {
-//             out = File(fname, File::Mode::WRITE);
-//         }
+        int pos = 0;
+        bool found = false;
+        for(; pos < str.size(); ++pos)
+        {
+            if(str[pos] == '>' || str[pos] == '<')
+            {
+                found = true;
+                break;
+            }
+        }
 
-//         if(found)
-//         {
-//             get_redirects(str.substr(pos, str.size() - pos));
-//         }
+        auto fname = str.substr(0, pos);
+        boost::trim(fname);
+        if(type == '<')
+        {
+            in = File(fname, File::Mode::READ);
+        }
+        else
+        {
+            out = File(fname, File::Mode::WRITE);
+        }
 
-//     }
+        if(found)
+        {
+            get_redirects(str.substr(pos, str.size() - pos));
+        }
 
-// public:
-//     FileRedirectCmd (Cmd* main_cmd, string redirects_str)
-//     {
-//         this->main_cmd = main_cmd;
-//         get_redirects(redirects_str);
-   
-//     }
+    }
 
-//     int run(){
-//     }
+public:
+    FileRedirectCmd (Cmd *main_cmd, string redirects_str)
+    {   
+        this->main_cmd = main_cmd;
+        get_redirects(redirects_str);
+    }
 
-//     int run(Process &proc){
-//         // cout << "Running " << this << endl;
-//         proc.set_stdin(in);
-//         proc.set_stdout(out);
-//         return main_cmd->run(proc);
-//     }
+    virtual
+    int run() override
+    {
+        main_cmd->set_stdin(in);
+        main_cmd->set_stdout(out);
 
-// };
+        return main_cmd->run();
+    }
+
+
+
+};
 
 
 // class LogicCmd : public Cmd
@@ -593,35 +598,35 @@ Cmd* parse_simple_cmd(string str)
 
 
 
-// Cmd* parse_file_redirect_cmd(string str)
-// {
-//     vector<string> strs;
-//     boost::algorithm::trim(str);  
-//     vector<string> trimmed;
+Cmd* parse_file_redirect_cmd(string str)
+{
+    vector<string> strs;
+    boost::algorithm::trim(str);  
+    vector<string> trimmed;
 
-//     int pos = 0;
-//     bool found = false;
-//     for(; pos < str.size(); ++pos)
-//     {
-//         if(str[pos] == '>' || str[pos] == '<')
-//         {
-//             found = true;
-//             break;
-//         }
-//     }
+    int pos = 0;
+    bool found = false;
+    for(; pos < str.size(); ++pos)
+    {
+        if(str[pos] == '>' || str[pos] == '<')
+        {
+            found = true;
+            break;
+        }
+    }
 
-//     string command_str;
-//     if(found)
-//     {   
-//         command_str = str.substr(0, pos);
-//         return new FileRedirectCmd(parse_simple_cmd(command_str), str.substr(pos, str.size() - pos));
-//     }
-//     else
-//     {
-//         return parse_simple_cmd(str);
-//     }
+    string command_str;
+    if(found)
+    {   
+        command_str = str.substr(0, pos);
+        return new FileRedirectCmd(parse_simple_cmd(command_str), str.substr(pos, str.size() - pos));
+    }
+    else
+    {
+        return parse_simple_cmd(str);
+    }
 
-// }
+}
 
 // Cmd *parse_logic_cmd(string str)
 // {
@@ -681,7 +686,7 @@ Cmd* parse_simple_cmd(string str)
 
 Cmd* parse_cmd(string str)
 {
-    return parse_simple_cmd(str);
+    return parse_file_redirect_cmd(str);
 
 }
 
