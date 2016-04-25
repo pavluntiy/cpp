@@ -449,7 +449,7 @@ protected:
             // cout << getpid() << " " << pid << endl;
         // cout << &proc << endl;
             Process new_process;
-            proc.set_ok_handler(
+            new_process.set_ok_handler(
                     [&]
                     (pid_t pid, int exited_correctly, int exit_status) -> int
                     {
@@ -457,12 +457,14 @@ protected:
                     }
             );
 
+            cout << "Going to execute right" << endl;
+
             if(right)
             {
                 auto tmp = right;
                 right = nullptr;
                 tmp->run(new_process);
-                delete tmp;
+                // delete tmp;
             }
 
             exit(exit_status);
@@ -555,10 +557,10 @@ public:
 
     int run(Process &proc){
         return proc.run_function(
-            [this]
+            [this, &proc]
             () -> int
             {   
-                Process proc;
+                // Process proc;
                 return main_cmd->run(proc);
             }
         );
@@ -645,7 +647,7 @@ Cmd* parse_file_redirect_cmd(string str)
 
 Cmd *parse_logic_cmd(string str)
 {
-auto pos1 = str.rfind("||");
+    auto pos1 = str.rfind("||");
     auto pos2 = str.rfind("&&");
 
     auto pos = -1;
