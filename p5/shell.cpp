@@ -321,21 +321,9 @@ class SimpleCmd : public Cmd
 
 vector<string> args;
 public:
-    SimpleCmd (string str)
+    SimpleCmd (vector<string> args)
     {
-
-        vector<string> strs;
-        boost::algorithm::trim(str); 
-        boost::split(strs, str, boost::is_any_of("\t \n"));  
-        for(auto &it: strs)
-        {
-            boost::trim(it);
-            if(it != "")
-            {
-                args.push_back(it);
-            }
-        }
-
+        this->args = args;
     }
 
     int run(){
@@ -356,7 +344,7 @@ public:
 class FileRedirectCmd : public Cmd
 {
 
-    SimpleCmd *main_cmd;
+    Cmd *main_cmd;
     File out;
     File in;
 
@@ -396,37 +384,11 @@ class FileRedirectCmd : public Cmd
     }
 
 public:
-    FileRedirectCmd (string str)
+    FileRedirectCmd (Cmd* main_cmd, string redirects_str)
     {
-
-        vector<string> strs;
-        boost::algorithm::trim(str);  
-        vector<string> trimmed;
-
-        int pos = 0;
-        bool found = false;
-        for(; pos < str.size(); ++pos)
-        {
-            if(str[pos] == '>' || str[pos] == '<')
-            {
-                found = true;
-                break;
-            }
-        }
-
-        string command_str;
-        if(found)
-        {   
-            command_str = str.substr(0, pos);
-            get_redirects(str.substr(pos, str.size() - pos));
-        }
-        else
-        {
-            command_str = str;
-        }
-
-        main_cmd = new SimpleCmd(command_str);
-
+        this->main_cmd = main_cmd;
+        get_redirects(redirects_str);
+   
     }
 
     int run(){
@@ -442,156 +404,213 @@ public:
 };
 
 
-class LogicCmd : public Cmd
-{
+// class LogicCmd : public Cmd
+// {
 
-    FileRedirectCmd *left;
-    LogicCmd *right;
+//     Cmd *left;
+//     Cmd *right;
 
-    enum class Type{AND, OR};
+//     enum class Type{AND, OR};
 
-    Type type;
+//     Type type;
 
-    vector<FileRedirectCmd*> commands;
+//     vector<FileRedirectCmd*> commands;
 
-    int or_handler(Process &proc, pid_t pid,  int exited_correctly, int exit_status)
-    {
+//     int or_handler(Process &proc, pid_t pid,  int exited_correctly, int exit_status)
+//     {
 
-            // cout << "OR HANDLER " << endl;
-            // cout << &proc << endl;
-            Process new_process;
-            proc.set_fail_handler(
-                    [&]
-                    (pid_t pid, int exited_correctly, int exit_status) -> int
-                    {
-                        return or_handler(new_process, pid, exited_correctly, exit_status);
-                    }
-            );
+//             // cout << "OR HANDLER " << endl;
+//             // cout << &proc << endl;
+//             Process new_process;
+//             proc.set_fail_handler(
+//                     [&]
+//                     (pid_t pid, int exited_correctly, int exit_status) -> int
+//                     {
+//                         return or_handler(new_process, pid, exited_correctly, exit_status);
+//                     }
+//             );
             
-            if(right)
-            {   
-                auto tmp = right;
-                right = nullptr;
-                tmp->run(proc);
-                delete tmp;
-            }
+//             if(right)
+//             {   
+//                 auto tmp = right;
+//                 right = nullptr;
+//                 tmp->run(proc);
+//                 delete tmp;
+//             }
 
-            exit(exit_status);
+//             exit(exit_status);
     
-    }
+//     }
 
-    int and_handler(Process &proc, pid_t pid,  int exited_correctly, int exit_status)
-    {
-            // cout << getpid() << " " << pid << endl;
-        // cout << &proc << endl;
-            Process new_process;
-            proc.set_ok_handler(
-                    [&]
-                    (pid_t pid, int exited_correctly, int exit_status) -> int
-                    {
-                        return and_handler(new_process, pid, exited_correctly, exit_status);
-                    }
-            );
+//     int and_handler(Process &proc, pid_t pid,  int exited_correctly, int exit_status)
+//     {
+//             // cout << getpid() << " " << pid << endl;
+//         // cout << &proc << endl;
+//             Process new_process;
+//             proc.set_ok_handler(
+//                     [&]
+//                     (pid_t pid, int exited_correctly, int exit_status) -> int
+//                     {
+//                         return and_handler(new_process, pid, exited_correctly, exit_status);
+//                     }
+//             );
 
-            if(right)
-            {
-                auto tmp = right;
-                right = nullptr;
-                tmp->run(new_process);
-                delete tmp;
-            }
+//             if(right)
+//             {
+//                 auto tmp = right;
+//                 right = nullptr;
+//                 tmp->run(new_process);
+//                 delete tmp;
+//             }
 
-            exit(exit_status);
+//             exit(exit_status);
     
-    }
+//     }
 
-public:
-    LogicCmd (string str)
+// public:
+//     LogicCmd (string str)
+//     {
+//         left = nullptr;
+//         right = nullptr;
+//         auto pos1 = str.find("||");
+//         auto pos2 = str.find("&&");
+
+//         auto pos = -1;
+//         if(pos1 == -1 && pos2 == -1)
+//         {
+//             left = new FileRedirectCmd(str);
+//             return;
+//         }
+
+//         if(pos1 == -1)
+//         {
+//             type = Type::AND;
+//             pos = pos2;
+//         }
+//         else
+//         if(pos2 == -1)
+//         {
+//             type = Type::OR;
+//             pos = pos1;
+//         }
+//         else
+//         {
+//             pos = min(pos1, pos2);
+//         }
+
+
+
+//         auto str_a = str.substr(0, pos);
+//         auto str_b = str.substr(pos + 2, str.size() - pos - 1);
+
+//         // cout << pos << endl;
+//         // cout << "@@ " << str_a << endl;
+//         // cout << "** " << str_b << endl;
+
+//         left = new FileRedirectCmd(str_a);
+//         right = new LogicCmd(str_b);
+
+//     }
+
+//     int run(){
+//     }
+
+//     int run(Process &proc){
+
+//         if(!right)
+//         {
+//             return left->run(proc);
+//         }
+
+
+//         return proc.run_function(
+//             [this]
+//             () -> int
+//             {   
+//                 Process proc;
+//                 // cout << ">>>>>>>>" << &proc << endl;
+//                 if(type == Type::OR){
+//                     proc.set_fail_handler(
+//                                 [&]
+//                                 (pid_t pid, int exited_correctly, int exit_status) -> int
+//                                 {
+//                                     return or_handler(proc, pid, exited_correctly, exit_status);
+//                                 }
+//                         );
+//                 }
+
+//                 if(type == Type::AND){
+//                     proc.set_ok_handler(
+//                                 [&]
+//                                 (pid_t pid, int exited_correctly, int exit_status) -> int
+//                                 {
+//                                     return and_handler(proc, pid, exited_correctly, exit_status);
+//                                 }
+//                         );
+//                 }
+//                 return left->run(proc);
+//             }
+//         );
+//     }
+
+// };
+
+
+Cmd* parse_simple_cmd(string str)
+{
+    vector<string> strs;
+    vector<string> args;
+    boost::algorithm::trim(str); 
+    boost::split(strs, str, boost::is_any_of("\t \n"));  
+    for(auto &it: strs)
     {
-        left = nullptr;
-        right = nullptr;
-        auto pos1 = str.find("||");
-        auto pos2 = str.find("&&");
-
-        auto pos = -1;
-        if(pos1 == -1 && pos2 == -1)
+        boost::trim(it);
+        if(it != "")
         {
-            left = new FileRedirectCmd(str);
-            return;
+            args.push_back(it);
         }
-
-        if(pos1 == -1)
-        {
-            type = Type::AND;
-            pos = pos2;
-        }
-        else
-        if(pos2 == -1)
-        {
-            type = Type::OR;
-            pos = pos1;
-        }
-        else
-        {
-            pos = min(pos1, pos2);
-        }
-
-
-
-        auto str_a = str.substr(0, pos);
-        auto str_b = str.substr(pos + 2, str.size() - pos - 1);
-
-        // cout << pos << endl;
-        // cout << "@@ " << str_a << endl;
-        // cout << "** " << str_b << endl;
-
-        left = new FileRedirectCmd(str_a);
-        right = new LogicCmd(str_b);
-
     }
 
-    int run(){
-    }
+    return new SimpleCmd(args);
+}
 
-    int run(Process &proc){
 
-        if(!right)
+
+Cmd* parse_file_redirect_cmd(string str)
+{
+    vector<string> strs;
+    boost::algorithm::trim(str);  
+    vector<string> trimmed;
+
+    int pos = 0;
+    bool found = false;
+    for(; pos < str.size(); ++pos)
+    {
+        if(str[pos] == '>' || str[pos] == '<')
         {
-            return left->run(proc);
+            found = true;
+            break;
         }
-
-
-        return proc.run_function(
-            [this]
-            () -> int
-            {   
-                Process proc;
-                // cout << ">>>>>>>>" << &proc << endl;
-                if(type == Type::OR){
-                    proc.set_fail_handler(
-                                [&]
-                                (pid_t pid, int exited_correctly, int exit_status) -> int
-                                {
-                                    return or_handler(proc, pid, exited_correctly, exit_status);
-                                }
-                        );
-                }
-
-                if(type == Type::AND){
-                    proc.set_ok_handler(
-                                [&]
-                                (pid_t pid, int exited_correctly, int exit_status) -> int
-                                {
-                                    return and_handler(proc, pid, exited_correctly, exit_status);
-                                }
-                        );
-                }
-                return left->run(proc);
-            }
-        );
     }
 
-};
+    string command_str;
+    if(found)
+    {   
+        command_str = str.substr(0, pos);
+        return new FileRedirectCmd(parse_simple_cmd(command_str), str.substr(pos, str.size() - pos));
+    }
+    else
+    {
+        return parse_simple_cmd(str);
+    }
+
+}
+
+Cmd* parse_cmd(string str)
+{
+    return parse_file_redirect_cmd(str);
+
+}
 
 int main(void)
 {
@@ -612,8 +631,8 @@ int main(void)
             continue;
         }
 
-        LogicCmd cmd(command);
-        cmd.run(proc);
+        Cmd *cmd = parse_cmd(command);
+        cmd->run(proc);
     }
     
 }
