@@ -128,7 +128,7 @@ protected:
     pid_t pid;
     string command;
     vector<string> args;
-    // char **vargs;
+    const char ** vargs;
 
     file_descriptor_t stdout;
     file_descriptor_t stdin;
@@ -143,9 +143,10 @@ protected:
     virtual int on_exit(bool exited_correctly, int exit_status)
     {
         
-        
+        cerr << "Process " << pid << " exited: " << " " << exit_status << endl;
         if(ok_handler && (exited_correctly && !exit_status))
-        {
+        {   
+            // cout << "I'm " << this << endl;
             return ok_handler(pid, exited_correctly, exit_status);
         }
 
@@ -154,12 +155,13 @@ protected:
             return fail_handler(pid, exited_correctly, exit_status);
         }
 
-        if (exit_handler)
-        {        
-            return exit_handler(pid, exited_correctly, exit_status);
-        }
+        // if (exit_handler)
+        // {        
+            
+            return exit_status;
+        // }
 
-        return exit_status;
+        // return exit_status;
     }
 
 public:
@@ -229,7 +231,7 @@ public:
         {
             // cout << "Waiting  " << pid << " function in " << getpid() << endl;
             int wait_status;
-            wait(&wait_status);
+            ::wait(&wait_status);
 
             auto exited_correctly = WIFEXITED(wait_status);
             auto exit_status = WEXITSTATUS(wait_status);
@@ -244,10 +246,48 @@ public:
     virtual
     void in_parent(){}
 
+    virtual
+    int exec()
+    {   
+            // cout << "Exec " << this << endl;
+
+            if(stdin_subst)
+            {   
+                ::dup2(stdin, 0);
+            }
+
+            if(stdout_subst)
+            {
+                ::dup2(stdout, 1);
+            }
+
+            auto command = args[0];
+            cout << command << endl;
+            in_child();
+            execvp(command.c_str(), const_cast<char *const *>(vargs));
+            exit(-1);
+            // throw system_error(errno, system_category());
+    }
+
+    virtual
+    int wait()
+    {   
+        int wait_status;
+        in_parent();
+        ::wait(&wait_status);
+
+        auto exited_correctly = WIFEXITED(wait_status);
+        auto exit_status = WEXITSTATUS(wait_status);
+
+        
+        delete [] vargs;
+        return on_exit(exited_correctly, exit_status);
+    }
+
     virtual int run()
     {       
-        int wait_status;
-        const char ** vargs = const_cast<const char**>(new char *[args.size() + 1]);
+
+        vargs = const_cast<const char**>(new char *[args.size() + 1]);
 
         for(int i = 0; i < args.size(); ++i)
         {   
@@ -260,34 +300,11 @@ public:
 
         if(!pid)
         {   
-            
-            if(stdin_subst)
-            {   
-                ::dup2(stdin, 0);
-            }
-
-            if(stdout_subst)
-            {
-                ::dup2(stdout, 1);
-            }
-
-            auto command = args[0];
-            in_child();
-            execvp(command.c_str(), const_cast<char *const *>(vargs));
-            // exit(-1);
-            throw system_error(errno, system_category());
+            exec();
         }
         else
         {   
-            in_parent();
-            wait(&wait_status);
-
-            auto exited_correctly = WIFEXITED(wait_status);
-            auto exit_status = WEXITSTATUS(wait_status);
-
-            
-            delete [] vargs;
-            return on_exit(exited_correctly, exit_status);
+            return wait();
         }
     }
 
@@ -387,195 +404,248 @@ public:
 };
 
 
-// class LogicCmd : public Cmd
-// {
-// public:
-//         enum class Type{AND, OR};
-// protected:
-//     Cmd *left;
-//     Cmd *right;
+class LogicCmd : public Cmd
+{
+public:
+        enum class Type{AND, OR};
+protected:
+    Cmd *left;
+    Cmd *right;
 
 
 
-//     Type type;
+    Type type;
 
-//     vector<FileRedirectCmd*> commands;
+    vector<FileRedirectCmd*> commands;
 
-//     int or_handler(Process &proc, pid_t pid,  int exited_correctly, int exit_status)
-//     {
+    // int or_handler(pid_t pid,  int exited_correctly, int exit_status)
+    // {
 
-//             // cout << "OR HANDLER " << endl;
-//             // cout << &proc << endl;
-//             Process new_process;
-//             proc.set_fail_handler(
-//                     [&]
-//                     (pid_t pid, int exited_correctly, int exit_status) -> int
-//                     {
-//                         return or_handler(new_process, pid, exited_correctly, exit_status);
-//                     }
-//             );
+    //         // cout << "OR HANDLER " << endl;
+    //         // cout << &proc << endl;
+    //         // Process new_process;
+    //         right->set_fail_handler(
+    //                 [&]
+    //                 (pid_t pid, int exited_correctly, int exit_status) -> int
+    //                 {
+    //                     return or_handler(pid, exited_correctly, exit_status);
+    //                 }
+    //         );
             
-//             if(right)
-//             {   
-//                 auto tmp = right;
-//                 right = nullptr;
-//                 tmp->run(proc);
-//                 delete tmp;
-//             }
+    //         if(right)
+    //         {   
+    //             auto tmp = right;
+    //             right = nullptr;
+    //             tmp->run();
+    //             delete tmp;
+    //         }
 
-//             exit(exit_status);
+    //         exit(exit_status);
     
-//     }
+    // }
 
-//     int and_handler(Process &proc, pid_t pid,  int exited_correctly, int exit_status)
-//     {
-//             // cout << getpid() << " " << pid << endl;
-//         // cout << &proc << endl;
-//             Process new_process;
-//             new_process.set_ok_handler(
-//                     [&]
-//                     (pid_t pid, int exited_correctly, int exit_status) -> int
-//                     {
-//                         return and_handler(new_process, pid, exited_correctly, exit_status);
-//                     }
-//             );
+    // int and_handler(Cmd *cmd, pid_t pid,  int exited_correctly, int exit_status)
+    // {
+    //         // cout << getpid() << " " << pid << endl;
+    //     // cout << &proc << endl;
+    //         // Process new_process;
 
-//             cout << "Going to execute right" << endl;
+    //         // cout << "And handler " << cmd << endl;
+    //         // if(!cmd)
+    //         // {
+    //         //     return exit_status;
+    //         // }
 
-//             if(right)
-//             {
-//                 auto tmp = right;
-//                 right = nullptr;
-//                 tmp->run(new_process);
-//                 // delete tmp;
-//             }
+    //         // if(dynamic_cast<LogicCmd*>(cmd)){
+    //         //     cmd->set_ok_handler(
+    //         //             [&]
+    //         //             (pid_t pid, int exited_correctly, int exit_status) -> int
+    //         //             {   
 
-//             exit(exit_status);
+    //         //                 return and_handler(dynamic_cast<LogicCmd*>(cmd)->right, pid, exited_correctly, exit_status);
+    //         //             }
+    //         //     );
+    //         // }
+
+    //         return right->run();
+    //         // return cmd->run();
+
+    //         // }
+
+    //         // exit(exit_status);
     
-//     }
+    // }
 
-// public:
+public:
 
-//     LogicCmd (Cmd *left, Cmd *right, Type type)
-//     {   
-//         this->left = left;
-//         this->right = right;
-//         this->type = type;
-//     }
+    LogicCmd (Cmd *left, Cmd *right, Type type)
+    {   
+        // cout << "Left " << left << endl;
+        // cout << "Right " << right << endl;
+        this->left = left;
+        this->right = right;
+        this->type = type;
+    }
 
-//     int run(){
-//     }
+    virtual 
+    int run() override
+    {
 
-//     int run(Process &proc){
+        // if(!right)
+        // {
+        //     return left->run(proc);
+        // }
+        // if(type == Type::OR){
+        //     left->set_fail_handler(
+        //                 [&]
+        //                 (pid_t pid, int exited_correctly, int exit_status) -> int
+        //                 {
+        //                     return or_handler(pid, exited_correctly, exit_status);
+        //                 }
+        //         );
+        // }
+        // cout << "Running logic "  << this  << endl;
 
-//         // if(!right)
-//         // {
-//         //     return left->run(proc);
-//         // }
-//         if(type == Type::OR){
-//             proc.set_fail_handler(
-//                         [&]
-//                         (pid_t pid, int exited_correctly, int exit_status) -> int
-//                         {
-//                             return or_handler(proc, pid, exited_correctly, exit_status);
-//                         }
-//                 );
-//         }
+        
 
-//         if(type == Type::AND){
-//             proc.set_ok_handler(
-//                         [&]
-//                         (pid_t pid, int exited_correctly, int exit_status) -> int
-//                         {
-//                             return and_handler(proc, pid, exited_correctly, exit_status);
-//                         }
-//                 );
-//         }
-//         return left->run(proc);
+        pid = fork();
+        if(!pid)
+        {   
+            if(type == Type::AND){
+            // cout << "Setting handler for " << left << endl; 
+            left->set_ok_handler(
+                        [&]
+                        (pid_t pid, int exited_correctly, int exit_status) -> int
+                        {   
+                            // ::exit(right->run());
+                            auto tmp = right->run();
+                            cout << "AND " << tmp << endl;
+                            ::exit(tmp);
+                        }
+                );
 
-//         // return proc.run_function(
-//         //     [this]
-//         //     () -> int
-//         //     {   
-//         //         Process proc;
-//         //         // cout << ">>>>>>>>" << &proc << endl;
-//         //         if(type == Type::OR){
-//         //             proc.set_fail_handler(
-//         //                         [&]
-//         //                         (pid_t pid, int exited_correctly, int exit_status) -> int
-//         //                         {
-//         //                             return or_handler(proc, pid, exited_correctly, exit_status);
-//         //                         }
-//         //                 );
-//         //         }
+            left->set_fail_handler(
+                        [&]
+                        (pid_t pid, int exited_correctly, int exit_status) -> int
+                        {   
+                            ::exit(exit_status);
+                        }
+                );
+        }
 
-//         //         if(type == Type::AND){
-//         //             proc.set_ok_handler(
-//         //                         [&]
-//         //                         (pid_t pid, int exited_correctly, int exit_status) -> int
-//         //                         {
-//         //                             return and_handler(proc, pid, exited_correctly, exit_status);
-//         //                         }
-//         //                 );
-//         //         }
-//         //         return left->run(proc);
-//         //     }
-//         // );
-//     }
+        if(type == Type::OR){
+            left->set_ok_handler(
+                        [&]
+                        (pid_t pid, int exited_correctly, int exit_status) -> int
+                        {   
+                            ::exit(exit_status);
+                        }
+                );
 
-// };
+            left->set_fail_handler(
+                        [&]
+                        (pid_t pid, int exited_correctly, int exit_status) -> int
+                        {   
+                            auto tmp = right->run();
+                            cout << "OR " << tmp << endl;
+                            ::exit(tmp);
+                        }
+                );
+        }
+            left->run();
+        }
+        else
+        {
+            // cout << "logic child " << pid << endl;
+            return wait();
+        }
+        // return left->run();
 
-// class LogicExpressionCmd : public Cmd
-// {
+        // return proc.run_function(
+        //     [this]
+        //     () -> int
+        //     {   
+        //         Process proc;
+        //         // cout << ">>>>>>>>" << &proc << endl;
+        //         if(type == Type::OR){
+        //             proc.set_fail_handler(
+        //                         [&]
+        //                         (pid_t pid, int exited_correctly, int exit_status) -> int
+        //                         {
+        //                             return or_handler(proc, pid, exited_correctly, exit_status);
+        //                         }
+        //                 );
+        //         }
 
-//     Cmd *main_cmd;
-// public:
-//     LogicExpressionCmd (Cmd* main_cmd)
-//     {
-//         this->main_cmd = main_cmd;   
-//     }
+        //         if(type == Type::AND){
+        //             proc.set_ok_handler(
+        //                         [&]
+        //                         (pid_t pid, int exited_correctly, int exit_status) -> int
+        //                         {
+        //                             return and_handler(proc, pid, exited_correctly, exit_status);
+        //                         }
+        //                 );
+        //         }
+        //         return left->run(proc);
+        //     }
+        // );
+    }
 
-//     int run(){
-//     }
+};
 
-//     int run(Process &proc){
-//         return proc.run_function(
-//             [this, &proc]
-//             () -> int
-//             {   
-//                 // Process proc;
-//                 return main_cmd->run(proc);
-//             }
-//         );
-//     }
-//     // [this]
-//         //     () -> int
-//         //     {   
-//         //         Process proc;
-//         //         // cout << ">>>>>>>>" << &proc << endl;
-//         //         if(type == Type::OR){
-//         //             proc.set_fail_handler(
-//         //                         [&]
-//         //                         (pid_t pid, int exited_correctly, int exit_status) -> int
-//         //                         {
-//         //                             return or_handler(proc, pid, exited_correctly, exit_status);
-//         //                         }
-//         //                 );
-//         //         }
+class LogicExpressionCmd : public Cmd
+{
 
-//         //         if(type == Type::AND){
-//         //             proc.set_ok_handler(
-//         //                         [&]
-//         //                         (pid_t pid, int exited_correctly, int exit_status) -> int
-//         //                         {
-//         //                             return and_handler(proc, pid, exited_correctly, exit_status);
-//         //                         }
-//         //                 );
-//         //         }
-//         //         return left->run(proc);
-//         //     }
-//         // );
-// };
+    Cmd *main_cmd;
+public:
+    LogicExpressionCmd (Cmd* main_cmd)
+    {
+        this->main_cmd = main_cmd;   
+    }
+
+    virtual 
+    int run() override
+    {
+        pid = fork();
+        if(!pid)
+        {   
+            main_cmd->run();
+        }
+        else
+        {
+            // cout << "logic child " << pid << endl;
+            return wait();
+            
+        }
+    }
+    // [this]
+        //     () -> int
+        //     {   
+        //         Process proc;
+        //         // cout << ">>>>>>>>" << &proc << endl;
+        //         if(type == Type::OR){
+        //             proc.set_fail_handler(
+        //                         [&]
+        //                         (pid_t pid, int exited_correctly, int exit_status) -> int
+        //                         {
+        //                             return or_handler(proc, pid, exited_correctly, exit_status);
+        //                         }
+        //                 );
+        //         }
+
+        //         if(type == Type::AND){
+        //             proc.set_ok_handler(
+        //                         [&]
+        //                         (pid_t pid, int exited_correctly, int exit_status) -> int
+        //                         {
+        //                             return and_handler(proc, pid, exited_correctly, exit_status);
+        //                         }
+        //                 );
+        //         }
+        //         return left->run(proc);
+        //     }
+        // );
+};
 
 
 Cmd* parse_simple_cmd(string str)
@@ -628,65 +698,65 @@ Cmd* parse_file_redirect_cmd(string str)
 
 }
 
-// Cmd *parse_logic_cmd(string str)
-// {
-//     auto pos1 = str.rfind("||");
-//     auto pos2 = str.rfind("&&");
+Cmd *parse_logic_cmd(string str)
+{
+    auto pos1 = str.rfind("||");
+    auto pos2 = str.rfind("&&");
 
-//     auto pos = -1;
-//     LogicCmd::Type type;
-//     if(pos1 == -1 && pos2 == -1)
-//     {
-//         return parse_file_redirect_cmd(str);
-//     }
+    auto pos = -1;
+    LogicCmd::Type type;
+    if(pos1 == -1 && pos2 == -1)
+    {
+        return parse_file_redirect_cmd(str);
+    }
 
-//     if(pos1 == -1)
-//     {
-//         type = LogicCmd::Type::AND;
-//         pos = pos2;
-//     }
-//     else
-//     if(pos2 == -1)
-//     {
-//         type = LogicCmd::Type::OR;
-//         pos = pos1;
-//     }
-//     else
-//     {
-//         pos = max(pos1, pos2);
-//     }
+    if(pos1 == -1)
+    {
+        type = LogicCmd::Type::AND;
+        pos = pos2;
+    }
+    else
+    if(pos2 == -1)
+    {
+        type = LogicCmd::Type::OR;
+        pos = pos1;
+    }
+    else
+    {
+        pos = max(pos1, pos2);
+    }
 
 
 
-//     auto str_a = str.substr(0, pos);
-//     auto str_b = str.substr(pos + 2, str.size() - pos - 1);
+    auto str_a = str.substr(0, pos);
+    auto str_b = str.substr(pos + 2, str.size() - pos - 1);
 
-//     // cout << pos << endl;
-//     // cout << "@@ " << str_a << endl;
-//     // cout << "** " << str_b << endl;
+    // cout << pos << endl;
+    // cout << "@@ " << str_a << endl;
+    // cout << "** " << str_b << endl;
 
-//     auto left = parse_logic_cmd(str_a);
-//     auto right  = parse_file_redirect_cmd(str_b);
-//     return new LogicCmd(left, right, type);
+    auto left = parse_logic_cmd(str_a);
+    auto right  = parse_file_redirect_cmd(str_b);
+    return new LogicCmd(left, right, type);
 
-// }
+}
 
-// Cmd* parse_logic_expression_cmd(string str)
-// {
-//     auto cmd = parse_logic_cmd(str);
-//     if(dynamic_cast<LogicCmd*>(cmd))
-//     {
-//         return new LogicExpressionCmd(cmd);
-//     }
-//     else
-//     {
-//         return cmd;
-//     }
-// }
+Cmd* parse_logic_expression_cmd(string str)
+{
+    auto cmd = parse_logic_cmd(str);
+    if(dynamic_cast<LogicCmd*>(cmd))
+    {
+        return new LogicExpressionCmd(cmd);
+    }
+    else
+    {
+        return cmd;
+    }
+}
 
 Cmd* parse_cmd(string str)
 {
-    return parse_file_redirect_cmd(str);
+    return parse_logic_expression_cmd(str);
 
 }
 
