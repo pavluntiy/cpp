@@ -68,7 +68,7 @@ T my_read(FILE *f)
 struct MyFile
 {
     FILE *f;
-    const size_t BUFF_SIZE =  1024 * 1024 * 1024;
+    const size_t BUFF_SIZE =  1024 * 1024;
     size_t bytes_read = 0;
     char *buff;
     string fname;
@@ -318,16 +318,21 @@ IndexInfo read_dicts(string fname)
                 // cout << "LOLOLOL\n";
                 for(int i = 0; i < word_cnt; ++i)
                 {   
-                    // cout << index.size() << ">>>>>>\n";
+                    // if(index.size() % 1000000 == 0)
+                    // {
+
+                    //     cout << index.size() << ">>>>>>\n";
+                    // }
                     if(!fl.can_read_n<word_id_t>(1))
                     {   
 
 
-                        // cout << "DUMP TO FILE " << index.size() << endl; 
+                        cout << "DUMP TO FILE " << index.size() << endl; 
                         // dump_to_file(index, total);
                         fw.dump(index);
                         total += 1;
                         fl.refill();
+                        index.clear();
                         index = map<word_id_t, vector<doc_id_t>>();
                         
                     }
@@ -626,7 +631,7 @@ int main(int argc, char **argv)
     // cin >> f_name;
 
     IndexInfo index_info = read_dicts(f_name);
-    // cout << "Read dicts!" << endl;
+    cout << "Read dicts!" << endl;
     write_index(index_info);
 
 
