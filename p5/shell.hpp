@@ -17,15 +17,22 @@
 
 using namespace std;
 
+void sigchld_handler(int);
+
 class Shell
 {   
     int current_pid;
+
+    
 
     void spawn(unique_ptr<Cmd>&);
 
 public:
     void run();
+    vector<int> background_pids;
  
 };
+
+extern Shell *global_shell;
 
 #endif

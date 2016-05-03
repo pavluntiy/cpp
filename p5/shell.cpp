@@ -1,5 +1,36 @@
 #include "shell.hpp"
 
+
+
+void sigchld_handler(int signal)
+{
+    for(auto it = begin(global_shell->background_pids); it != end(global_shell->background_pids); )
+    {
+        int status;
+        if(::waitpid(*it, &status, WNOHANG))
+        // if(false)
+        {
+            auto exited_correctly = WIFEXITED(status);
+            auto exit_status = WEXITSTATUS(status);
+
+            cerr << "Process " << *it << " exited: " << exit_status << endl;
+
+            it = global_shell->background_pids.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+
+    }
+}
+
+void sigint_handler(int signal)
+{
+    kill(global_shell->current_pid);
+}
+
+
 void Shell::run()
 {   
     string str;
@@ -15,6 +46,28 @@ void Shell::run()
         auto cmd = parser.parse(str);
 
         spawn(cmd);
+
+        // cout << background_pids.size() << endl;
+
+        // for(auto it = begin(background_pids); it != end(background_pids); )
+        // {
+        //     int status;
+        //     if(::waitpid(*it, &status, WNOHANG))
+        //     // if(false)
+        //     {
+        //         auto exited_correctly = WIFEXITED(status);
+        //         auto exit_status = WEXITSTATUS(status);
+
+        //         cerr << "Process " << *it << " exited: " << " " << exit_status << endl;
+
+        //         it = background_pids.erase(it);
+        //     }
+        //     else
+        //     {
+        //         ++it;
+        //     }
+
+        // }
     }
 
 }
@@ -22,7 +75,7 @@ void Shell::run()
 void Shell::spawn(unique_ptr<Cmd> &cmd)
 {
 
-    current_pid = fork();
+    current_pid = ::fork();
 
     if(!current_pid)
     {
@@ -30,14 +83,21 @@ void Shell::spawn(unique_ptr<Cmd> &cmd)
     }
     else
     {
-        int status;
+        if(!cmd->run_background)
+        {   
+            int status;
 
-        wait(&status);
+            ::wait(&status);
 
-        auto exited_correctly = WIFEXITED(status);
-        auto exit_status = WEXITSTATUS(status);
+            auto exited_correctly = WIFEXITED(status);
+            auto exit_status = WEXITSTATUS(status);
 
-        cerr << "Process " << current_pid << " exited: " << " " << exit_status << endl;
+            cerr << "Process " << current_pid << " exited: "  << exit_status << endl;
+        }
+        else
+        {
+            background_pids.push_back(current_pid);
+        }
     }
 
 }

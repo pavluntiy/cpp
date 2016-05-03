@@ -80,13 +80,26 @@ bool Parser::is_redirect(string str)
 unique_ptr<Cmd> Parser::parse(string str)
 {
 
-   tokenize(str);
+    tokenize(str);
 
     unique_ptr<Cmd> cmd = parse_simple_cmd();
+
+    if(pos < tokens.size() && tokens[pos] == "&")
+    {
+        cmd->run_background = true;
+        return cmd;
+    }
+ 
     while(pos < tokens.size() && is_op(tokens[pos]))
     {
         auto op = tokens[pos];
         ++pos;
+
+        if(op == "&")
+        {
+            cmd->run_background = true;
+            return cmd;
+        }
 
         auto current = parse_simple_cmd();
 

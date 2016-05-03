@@ -25,6 +25,8 @@ public:
     string command;
     vector<string> args;
 
+    bool run_background = false;
+
     virtual void run();
 };
 
