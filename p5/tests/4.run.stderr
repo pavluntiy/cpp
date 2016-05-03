@@ -1,13 +1,5 @@
-Process 7375 exited:  0
-Process 7376 exited:  0
-cat: file.txt: No such file or directory
-cat: file.txt: No such file or directory
-cat: file.txt: No such file or directory
-cat: file1.txt: No such file or directory
-cat: |: No such file or directory
-cat: sort: No such file or directory
-cat: |: No such file or directory
-cat: uniq: No such file or directory
-Process 7377 exited:  1
-Process 7378 exited:  1
-Process 7379 exited:  0
+Process 7996 exited:  0
+Process 7997 exited:  0
+Process 7998 exited:  0
+Process 7999 exited:  1
+Process 8000 exited:  0

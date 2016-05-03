@@ -1,10 +1,5 @@
-Process 7358 exited:  0
-Process 7359 exited:  0
-Process 7360 exited:  255
-cat: <: No such file or directory
-cat: file.test: No such file or directory
-cat: >: No such file or directory
-cat: file1.test: No such file or directory
-Process 7361 exited:  1
-cat: file1.test: No such file or directory
-Process 7362 exited:  1
+Process 7979 exited:  0
+Process 7980 exited:  0
+Process 7981 exited:  0
+Process 7982 exited:  0
+Process 7983 exited:  0

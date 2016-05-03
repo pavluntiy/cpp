@@ -22,6 +22,9 @@ class Parser
 public:
 
     bool is_op(string);
+    bool is_redirect(string);
+
+    bool is_letter(char);
 
     unique_ptr<Cmd> parse(string);
     unique_ptr<Cmd> parse_simple_cmd();

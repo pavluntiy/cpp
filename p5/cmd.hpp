@@ -7,6 +7,7 @@
 #include <memory>
 
 #include <unistd.h>
+#include <sys/fcntl.h>
 
 
 using namespace std;
@@ -15,8 +16,8 @@ using namespace std;
 class Cmd
 {
 public:
-    string file_in;
-    string file_out;
+    string in_file;
+    string out_file;
 
     string command;
     vector<string> args;

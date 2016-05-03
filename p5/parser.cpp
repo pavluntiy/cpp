@@ -1,5 +1,10 @@
 #include "parser.hpp"
 
+bool Parser::is_letter(char c)
+{
+    return !(c == '<' || c == '>' || c == '&' || c == '|' || c == ';' || c == ' ' || c == '\n');
+}
+
 void Parser::tokenize(string str)
 {
     pos = 0;
@@ -13,13 +18,50 @@ void Parser::tokenize(string str)
 
         string current = "";
 
-        while(i < str.size() && !isspace(str[i]))
+        if(str[i] == '>' || str[i] == '<')
         {
-            current += str[i];
+            current = str[i];
             ++i;
         }
+        else if(str[i] == '&')
+        {
+            ++i;
+            if(i < str.size() && str[i] == '&')
+            {
+                current = "&&";
+                ++i;
+            }
+            else
+            {
+                current = "&";
+            }
+        }
+        else if(str[i] == '|')
+        {
+            ++i;
+            if(i < str.size() && str[i] == '|')
+            {
+                current = "||";
+                ++i;
+            }
+            else
+            {
+                current = "|";
+            }
+        }
+        else
+        {
+            while(i < str.size() && is_letter(str[i]))
+            {
+                current += str[i];
+                ++i;
+            }
+        }   
 
-        tokens.push_back(current);
+        if(current != "")
+        {
+            tokens.push_back(current);
+        }
 
         // cout << current << endl;
     }
@@ -27,7 +69,12 @@ void Parser::tokenize(string str)
 
 bool Parser::is_op(string str)
 {
-    return str == "&&" || str == "||" || str == "&";
+    return str == "&&" || str == "||" || str == "&" || str == "|";
+}
+
+bool Parser::is_redirect(string str)
+{
+    return str == "<" || str == ">";
 }
 
 unique_ptr<Cmd> Parser::parse(string str)
@@ -58,17 +105,38 @@ unique_ptr<Cmd> Parser::parse_simple_cmd()
 
     // cout << command << endl;
 
-    while(pos < tokens.size() && !is_op(tokens[pos]))
+    while(pos < tokens.size() && !is_op(tokens[pos]) && !is_redirect(tokens[pos]))
     {
         args.push_back(tokens[pos]);
         // cout << tokens[pos] << endl;
         ++pos;
     }
 
+    string in_file = "", out_file = "";
+    while(pos < tokens.size() && is_redirect(tokens[pos]))
+    {
+        auto op = tokens[pos];
+        ++pos;
+        if(op == ">")
+        {
+            out_file = tokens[pos]; 
+        }
+        else
+        {
+            in_file = tokens[pos]; 
+        }
+
+        ++pos;
+    }
+
+
     auto result = make_unique<Cmd>();
 
     result->args = move(args);
     result->command = move(command);
+
+    result->in_file = in_file;
+    result->out_file = out_file;
 
     
 
