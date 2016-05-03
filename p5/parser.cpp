@@ -95,6 +95,11 @@ unique_ptr<Cmd> Parser::parse(string str)
             cmd = make_unique<LogicCmd>(move(cmd), move(current), op);
         }
 
+        if(op == "|")
+        {   
+            cmd = make_unique<PipeCmd>(move(cmd), move(current));
+        }
+
     }
 
     return cmd;

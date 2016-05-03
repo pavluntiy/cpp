@@ -86,3 +86,47 @@ void LogicCmd::run()
         ::exit(exit_status);
     }
 }
+
+PipeCmd::PipeCmd(unique_ptr<Cmd> &&left, unique_ptr<Cmd> &&right):left(move(left)), right(move(right))
+{}
+
+void PipeCmd::run()
+{
+    int p[2];
+    ::pipe(p);
+
+    int pid1 = ::fork();
+    if(!pid1)
+    {
+        ::close(p[0]);
+        ::dup2(p[1], 1);
+        ::close(p[1]);
+        
+        left->run();
+    }
+    
+    int pid2 = ::fork();
+    if(!pid2)
+    {
+        ::close(p[1]);
+        ::dup2(p[0], 0);
+        ::close(p[0]);
+        
+        right->run();
+    }
+
+    ::close(p[1]);
+    ::close(p[0]);
+
+    int status1, status2;
+    ::waitpid(pid1, &status1, 0);
+    ::waitpid(pid2, &status2, 0);
+
+    auto exited_correctly = WIFEXITED(status2);
+    auto exit_status = WEXITSTATUS(status2);
+
+    // cout << status1 << " " << status2 << endl;
+
+    ::exit(exit_status);
+
+}

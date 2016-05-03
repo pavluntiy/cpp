@@ -41,4 +41,15 @@ public:
     virtual void run() override;
 };
 
+class PipeCmd: public Cmd
+{
+
+public:
+    unique_ptr<Cmd> left, right;
+
+    PipeCmd(unique_ptr<Cmd>&&, unique_ptr<Cmd>&&);
+
+    virtual void run() override;
+};
+
 #endif
