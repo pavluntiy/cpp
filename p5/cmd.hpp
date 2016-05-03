@@ -2,8 +2,12 @@
 #define CMD_HPP
 
 #include <string>
+#include <iostream>
 #include <vector>
 #include <memory>
+
+#include <unistd.h>
+
 
 using namespace std;
 
