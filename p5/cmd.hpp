@@ -7,7 +7,10 @@
 #include <memory>
 
 #include <unistd.h>
+#include <sys/wait.h>
 #include <sys/fcntl.h>
+#include <sys/types.h>
+#include <signal.h>
 
 
 using namespace std;
@@ -26,13 +29,16 @@ public:
 };
 
 
-// class LogicCmd: Cmd
-// {
+class LogicCmd: public Cmd
+{
 
-// public:
-//     unique_ptr<Cmd> left, right;
+public:
+    unique_ptr<Cmd> left, right;
+    string type;
 
-//     virtual void run() override;
-// };
+    LogicCmd(unique_ptr<Cmd>&&, unique_ptr<Cmd>&&, string);
+
+    virtual void run() override;
+};
 
 #endif

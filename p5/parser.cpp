@@ -82,15 +82,20 @@ unique_ptr<Cmd> Parser::parse(string str)
 
    tokenize(str);
 
-    auto cmd = parse_simple_cmd();
-    // while(pos < tokens.size() && is_op(tokens[pos]))
-    // {
-    //     auto op = tokens[pos];
-    //     ++pos;
+    unique_ptr<Cmd> cmd = parse_simple_cmd();
+    while(pos < tokens.size() && is_op(tokens[pos]))
+    {
+        auto op = tokens[pos];
+        ++pos;
 
-    //     auto current = parse_simple_cmd();
+        auto current = parse_simple_cmd();
 
-    // }
+        if(op == "&&" || op == "||")
+        {   
+            cmd = make_unique<LogicCmd>(move(cmd), move(current), op);
+        }
+
+    }
 
     return cmd;
 }

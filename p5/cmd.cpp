@@ -32,3 +32,57 @@ void Cmd::run()
     execvp(command.c_str(), const_cast<char *const *>(vargs));
     exit(-1);
 }
+
+LogicCmd::LogicCmd(unique_ptr<Cmd> &&left, unique_ptr<Cmd> &&right, string type):left(move(left)), right(move(right)), type(type)
+{}
+
+void LogicCmd::run()
+{
+    int current_pid;
+    if(type == "&&")
+    {
+        if(!(current_pid = fork()))
+        {
+            left->run();
+        }
+
+        int status;
+
+        ::wait(&status);
+
+        auto exited_correctly = WIFEXITED(status);
+        auto exit_status = WEXITSTATUS(status);
+
+        cerr << "Process " << current_pid << " exited: " << " " << exit_status << endl;
+
+        if(exited_correctly && !exit_status)
+        {
+           right->run(); 
+        }
+
+        ::exit(exit_status);
+    }
+    else
+    {
+        if(!(current_pid = fork()))
+        {
+            left->run();
+        }
+
+        int status;
+        
+        ::wait(&status);
+
+        auto exited_correctly = WIFEXITED(status);
+        auto exit_status = WEXITSTATUS(status);
+
+        cerr << "Process " << current_pid << " exited: " << " " << exit_status << endl;
+
+        if(!exited_correctly || exit_status)
+        {
+           right->run(); 
+        }
+
+        ::exit(exit_status);
+    }
+}
