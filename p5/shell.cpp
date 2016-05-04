@@ -2,7 +2,7 @@
 
 
 
-void sigchld_handler(int signal)
+void sigchld_handler(int signum)
 {
     for(auto it = begin(global_shell->background_pids); it != end(global_shell->background_pids); )
     {
@@ -25,11 +25,21 @@ void sigchld_handler(int signal)
     }
 }
 
-void sigint_handler(int signal)
+void sigint_handler(int signum)
 {
-    kill(global_shell->current_pid);
+    ::signal(SIGINT, sigint_handler);
+    global_shell->kill();
 }
 
+
+void Shell::kill()
+{
+    
+    if(current_pid){
+        // cout << "Sigint " << current_pid << " in " << ::getpid() << endl;
+        ::kill(current_pid, SIGINT);
+    }
+}
 
 void Shell::run()
 {   
@@ -85,9 +95,14 @@ void Shell::spawn(unique_ptr<Cmd> &cmd)
     {
         if(!cmd->run_background)
         {   
+            // current_pid = pid;
             int status;
 
             ::wait(&status);
+            // if(waitpid(current_pid, &status, 0) <= 0)
+            // {
+            //     return;
+            // }
 
             auto exited_correctly = WIFEXITED(status);
             auto exit_status = WEXITSTATUS(status);
@@ -97,6 +112,7 @@ void Shell::spawn(unique_ptr<Cmd> &cmd)
         else
         {
             background_pids.push_back(current_pid);
+            current_pid = 0;
         }
     }
 

@@ -1,4 +1,5 @@
 #include "cmd.hpp"
+#include "shell.hpp"
 
 void Cmd::run()
 {   
@@ -41,7 +42,7 @@ void LogicCmd::run()
     int current_pid;
     if(type == "&&")
     {
-        if(!(current_pid = fork()))
+        if(!(global_shell->current_pid = current_pid = fork()))
         {
             left->run();
         }
@@ -64,7 +65,7 @@ void LogicCmd::run()
     }
     else
     {
-        if(!(current_pid = fork()))
+        if(!(global_shell->current_pid = current_pid = fork()))
         {
             left->run();
         }
@@ -106,6 +107,7 @@ void PipeCmd::run()
     }
     
     int pid2 = ::fork();
+    global_shell->current_pid = pid2;
     if(!pid2)
     {
         ::close(p[1]);

@@ -15,6 +15,8 @@
 
 using namespace std;
 
+// class Shell;
+// extern Shell *global_shell;
 
 class Cmd
 {

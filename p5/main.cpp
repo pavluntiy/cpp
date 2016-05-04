@@ -12,6 +12,7 @@ int main(void)
     global_shell = &shell;
 
     signal(SIGCHLD, sigchld_handler);
+    signal(SIGINT, sigint_handler);
 
     shell.run();
     return 0;

@@ -2,7 +2,7 @@
 
 bool Parser::is_letter(char c)
 {
-    return !(c == '<' || c == '>' || c == '&' || c == '|' || c == ';' || c == ' ' || c == '\n');
+    return !(c == '<' || c == '>' || c == '&' || c == '|'  || c == ' ' || c == '\n');
 }
 
 void Parser::tokenize(string str)
@@ -49,6 +49,15 @@ void Parser::tokenize(string str)
                 current = "|";
             }
         }
+        // else if(str[i] == '\'')
+        // {
+        //     ++i;
+        //     while(i < str.size() && str[i] != '\'')
+        //     {
+        //         current += str[i];
+        //         ++i;
+        //     }
+        // }
         else
         {
             while(i < str.size() && is_letter(str[i]))

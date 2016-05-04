@@ -18,17 +18,20 @@
 using namespace std;
 
 void sigchld_handler(int);
+void sigint_handler(int);
 
 class Shell
 {   
-    int current_pid;
+
 
     
 
     void spawn(unique_ptr<Cmd>&);
 
 public:
+    int current_pid = 0;
     void run();
+    void kill();
     vector<int> background_pids;
  
 };
