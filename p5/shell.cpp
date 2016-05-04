@@ -36,8 +36,12 @@ void Shell::kill()
 {
     
     if(current_pid){
-        // cout << "Sigint " << current_pid << " in " << ::getpid() << endl;
+        // 
         ::kill(current_pid, SIGINT);
+        // cout << "Sigint " << current_pid << " in " << ::getpid() << endl;
+        // int status;
+        // waitpid(current_pid, &status, 0);
+
     }
 }
 
